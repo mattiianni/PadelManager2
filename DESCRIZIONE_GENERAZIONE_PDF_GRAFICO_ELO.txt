@@ -1,0 +1,91 @@
+GENERAZIONE PDF GRAFICO ELO - ANALISI PROBLEMA
+
+=== PROBLEMA ATTUALE ===
+Nel PDF stampato, le linee del grafico ELO si fermano prima di raggiungere il punto "Day 1" sull'asse X, lasciando molto spazio vuoto a destra.
+
+=== COME FUNZIONA LA GENERAZIONE PDF ===
+
+1. TRIGGER STAMPA:
+   - Utente clicca bottone "Stampa Grafico ELO" (components/RankingChart.tsx, riga 109)
+   - Si chiama handlePrintChart() (riga 43-56)
+
+2. PREPARAZIONE DATI PER STAMPA:
+   - Temporaneamente seleziona TUTTI i giocatori con storia ELO (riga 46)
+   - Imposta isPrinting = true (riga 47)
+   - Aspetta 500ms per il re-render (riga 50)
+
+3. GENERAZIONE DATI GRAFICO:
+   - chartData viene generato in useMemo (riga 66-97)
+   - Struttura dati: array di oggetti con eventIndex e valori ELO per ogni giocatore
+   - eventIndex: -1 (Start), 0 (prima giornata), 1 (seconda giornata), ecc.
+
+4. RENDERING GRAFICO:
+   - LineChart con XAxis che usa eventIndex come dataKey (riga 137)
+   - Quando isPrinting=true, domain=['dataMin', 'dataMax'] (riga 144)
+   - tickFormatter mostra "Day X" invece di "EX" (riga 138-142)
+
+5. STAMPA PDF:
+   - printChart() (services/printService.ts, riga 81-149)
+   - Copia HTML del container #elo-chart-container
+   - Apre nuova finestra con HTML del grafico
+   - Aggiunge CSS specifico per stampa (riga 90-121)
+
+=== POSSIBILI CAUSE DEL PROBLEMA ===
+
+A) DOMINIO ASSE X:
+   - Attualmente: domain=['dataMin', 'dataMax'] 
+   - dataMin/dataMax potrebbero non essere calcolati correttamente da Recharts
+   - Prova: domain={[-1.2, chartData.length - 2 + 0.2]} (come suggerito nell'attached_files)
+
+B) MARGINI GRAFICO:
+   - LineChart ha margin={{ top: 5, right: 20, left: -10, bottom: 5 }} (riga 134)
+   - margin.right=20 potrebbe creare spazio vuoto a destra
+
+C) RESPONSIVE CONTAINER:
+   - ResponsiveContainer potrebbe non adattarsi correttamente nel PDF
+   - Dimensioni fisse potrebbero essere necessarie per la stampa
+
+D) CSS STAMPA:
+   - pageStyles nel printService.ts (riga 90-121)
+   - #elo-chart-container ha width: 100% e height: 80vh
+   - Potrebbe esserci conflitto con dimensioni del grafico
+
+=== SOLUZIONI DA PROVARE ===
+
+1. FISSA IL DOMINIO X:
+   - Invece di ['dataMin', 'dataMax']
+   - Usa valori espliciti basati su chartData.length
+   - Esempio: domain={[-1.2, chartData.length - 2 + 0.2]}
+
+2. AGGIUSTA MARGINI:
+   - Riduci margin.right da 20 a 5 o 0
+   - Testa: margin={{ top: 5, right: 5, left: -10, bottom: 5 }}
+
+3. DIMENSIONI FISSE PER STAMPA:
+   - Quando isPrinting=true, usa dimensioni fisse invece di ResponsiveContainer
+   - Esempio: width={800} height={400}
+
+4. CSS SPECIFICO PER STAMPA:
+   - Nel printService.ts, aggiungi CSS che forza il grafico a occupare tutto lo spazio
+   - Esempio: .recharts-wrapper { width: 100% !important; }
+
+=== CODICE DA MODIFICARE ===
+
+components/RankingChart.tsx:
+- Riga 134: margin del LineChart
+- Riga 144: domain dell'XAxis
+- Riga 132-133: dimensioni del container (quando isPrinting)
+
+services/printService.ts:
+- Riga 90-121: pageStyles per il CSS di stampa
+- Riga 109-112: dimensioni del container nel PDF
+
+=== TESTING ===
+1. Modifica una soluzione alla volta
+2. Stampa il PDF per verificare
+3. Se non funziona, prova la soluzione successiva
+4. Combinazioni di soluzioni potrebbero essere necessarie
+
+=== NOTA ===
+Il problema è SOLO nel PDF stampato, la UI normale funziona perfettamente.
+Questo suggerisce che il problema è nella gestione delle dimensioni/dominio durante la stampa.
