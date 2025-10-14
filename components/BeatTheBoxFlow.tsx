@@ -302,8 +302,15 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
         console.log('🔵 allMatchesComplete:', allMatchesComplete);
         setAllMatches(allMatchesComplete);
         
-        // Calcola classifiche dei box e mostra popup
-        const standings = calculateAllBoxStandings(allMatchesComplete, boxesData);
+        // Calcola classifiche dei box (usa match normalizzati con winner coerente)
+        const normalizedMatches = allMatchesComplete.map(m => {
+            if (m.winner) return m;
+            const team1Games = (m.sets || []).reduce((sum, s) => sum + (s.team1 || 0), 0);
+            const team2Games = (m.sets || []).reduce((sum, s) => sum + (s.team2 || 0), 0);
+            const winner = team1Games === team2Games ? 'draw' : (team1Games > team2Games ? 'team1' : 'team2');
+            return { ...m, winner } as Match;
+        });
+        const standings = calculateAllBoxStandings(normalizedMatches, boxesData);
         console.log('🔵 standings:', standings);
         setBoxStandings(standings);
         console.log('🔵 Aprendo modal classifiche box');

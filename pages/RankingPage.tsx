@@ -323,9 +323,11 @@ const RankingPage: React.FC<RankingPageProps> = ({ theme }) => {
                                     const playerHistory = eloHistory
                                         .filter(entry => {
                                             if (entry.playerId !== player.id) return false;
-                                            // If tournament is selected, only show history for that tournament (by NAME)
+                                            // If tournament is selected, only show history for that series (giornataName || name)
                                             if (selectedTournamentId) {
-                                                const tournamentIds = tournaments.filter(t => t.name === selectedTournamentId).map(t => t.id);
+                                                const tournamentIds = tournaments
+                                                    .filter(t => (t.giornataName || t.name) === selectedTournamentId)
+                                                    .map(t => t.id);
                                                 return tournamentIds.includes(entry.eventId);
                                             }
                                             return true;
