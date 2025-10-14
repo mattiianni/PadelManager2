@@ -210,10 +210,13 @@ export function calculateAllBoxStandings(
     allMatches: Match[],
     boxesData: BoxData[]
 ): BoxStanding[] {
-    return boxesData.map((boxData) => {
-        // Usa i match già presenti in boxData invece di fare slice
-        // Questo è più robusto e funziona anche se i match non sono ordinati sequenzialmente
-        const boxMatches = boxData.matches;
+    return boxesData.map((boxData, boxIdx) => {
+        // CRITICAL FIX: Usa i match passati come parametro (che hanno i winner!)
+        // Non usare boxData.matches che sono Omit<Match, 'id'> e non hanno winner
+        const matchesPerBox = 3; // Beat the Box ha sempre 3 match per box
+        const startIdx = boxIdx * matchesPerBox;
+        const endIdx = startIdx + matchesPerBox;
+        const boxMatches = allMatches.slice(startIdx, endIdx);
         
         return {
             boxNumber: boxData.boxNumber,
