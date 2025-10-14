@@ -2060,6 +2060,41 @@ export const printBeatTheBoxComplete = (
     individualStandings: { player: Player; eloChange: number; rank: number; gamesWon: number; gamesLost: number; winPercentage: number }[],
     getPlayerById: (id: string) => Player | undefined
 ) => {
+    // 🔍 LOGGING DETTAGLIATO - Verifica dati in ingresso
+    console.log('📄 === PRINT BEAT THE BOX DEBUG ===');
+    console.log('📦 Boxes ricevuti:', boxes.length);
+    boxes.forEach((box, idx) => {
+        console.log(`📦 Box ${box.boxNumber}:`, {
+            playersCount: box.players.length,
+            playerIds: box.players.map(p => p.id),
+            playerNames: box.players.map(p => `${p.name} ${p.surname}`),
+            matchesCount: box.matches.length
+        });
+    });
+    
+    // Verifica duplicati nei box
+    const allPlayerIdsInBoxes = boxes.flatMap(b => b.players.map(p => p.id));
+    const uniquePlayerIdsInBoxes = [...new Set(allPlayerIdsInBoxes)];
+    console.log('📊 Total player IDs in boxes:', allPlayerIdsInBoxes.length);
+    console.log('📊 Unique player IDs in boxes:', uniquePlayerIdsInBoxes.length);
+    if (allPlayerIdsInBoxes.length !== uniquePlayerIdsInBoxes.length) {
+        console.warn('⚠️ DUPLICATI TROVATI nei box players!');
+    }
+    
+    console.log('📊 Individual standings ricevuti:', individualStandings.length);
+    console.log('📊 Individual standings IDs:', individualStandings.map(s => s.player.id));
+    
+    // 🛡️ DEDUPLICAZIONE SICURA - Pulisci i box da eventuali duplicati
+    const cleanedBoxes = boxes.map(box => ({
+        ...box,
+        players: Array.from(new Map(box.players.map(p => [p.id, p])).values())
+    }));
+    
+    console.log('✅ Boxes dopo deduplicazione:', cleanedBoxes.map(b => ({ 
+        boxNum: b.boxNumber, 
+        players: b.players.length 
+    })));
+    
     const generateMatchRow = (match: Match) => {
         const t1p1 = getPlayerById(match.team1[0]);
         const t1p2 = getPlayerById(match.team1[1]);
@@ -2083,7 +2118,7 @@ export const printBeatTheBoxComplete = (
         `;
     };
     
-    const boxesContent = boxes.map((box, boxIdx) => {
+    const boxesContent = cleanedBoxes.map((box, boxIdx) => {
         const matchesHtml = box.matches.map(match => generateMatchRow(match)).join('');
         
         const boxStanding = boxStandings.find(bs => bs.boxNumber === box.boxNumber);
@@ -2265,7 +2300,29 @@ export const printBeatTheBoxComplete = (
         }
     }
     
-    const individualStandingsHtml = individualStandings.map(entry => {
+    // 🛡️ DEDUPLICAZIONE INDIVIDUAL STANDINGS - Rimuovi eventuali duplicati per ID
+    const cleanedIndividualStandings = Array.from(
+        new Map(individualStandings.map(entry => [entry.player.id, entry])).values()
+    ).sort((a, b) => b.eloChange - a.eloChange)
+     .map((e, idx) => ({ ...e, rank: idx + 1 })); // Ricalcola rank dopo dedup
+    
+    console.log('✅ Individual standings dopo deduplicazione:', cleanedIndividualStandings.length);
+    
+    // 🔍 CONTROLLO DI CONSISTENZA - Verifica numero giocatori
+    const expectedPlayers = cleanedBoxes.reduce((sum, box) => sum + box.players.length, 0);
+    const actualIndividualStandings = cleanedIndividualStandings.length;
+    
+    console.log('🔍 Controllo consistenza:');
+    console.log(`   - Giocatori attesi (da boxes): ${expectedPlayers}`);
+    console.log(`   - Giocatori in classifica individuale: ${actualIndividualStandings}`);
+    
+    if (expectedPlayers !== actualIndividualStandings) {
+        console.error(`❌ INCONSISTENZA! Attesi ${expectedPlayers} giocatori, trovati ${actualIndividualStandings} in classifica`);
+    } else {
+        console.log('✅ Consistenza verificata: numeri corretti!');
+    }
+    
+    const individualStandingsHtml = cleanedIndividualStandings.map(entry => {
         return `
             <tr style="height: 20px;">
                 <td style="text-align: center; width: 10%; font-size: 10px; padding: 4px 5px; height: 20px;">${entry.rank}°</td>

@@ -1070,10 +1070,32 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
 					<div className="flex gap-3 pt-4">
 						<Button 
 							onClick={() => {
-								console.log('🖨️ Stampa Report chiamato');
+								console.log('🖨️ ======= PREPARAZIONE STAMPA BEAT THE BOX =======');
 								console.log('🖨️ allMatches.length:', allMatches.length);
-								console.log('🖨️ boxStandings:', boxStandings);
-								console.log('🖨️ individualStandingsUI:', individualStandingsUI);
+								console.log('🖨️ semifinalMatches.length:', semifinalMatches.length);
+								console.log('🖨️ finalMatches.length:', finalMatches.length);
+								
+								// 🔍 VERIFICA boxesData.players PRIMA della stampa
+								console.log('🔍 Verifica boxesData.players:');
+								boxesData.forEach((b, idx) => {
+									console.log(`   Box ${b.boxNumber}:`, {
+										playersCount: b.players.length,
+										playerIds: b.players.map(p => p.id),
+										playerNames: b.players.map(p => `${p.name} ${p.surname}`)
+									});
+								});
+								
+								// Verifica duplicati in boxesData
+								const allPlayersInBoxesData = boxesData.flatMap(b => b.players.map(p => p.id));
+								const uniquePlayersInBoxesData = [...new Set(allPlayersInBoxesData)];
+								console.log('📊 Total player IDs in boxesData:', allPlayersInBoxesData.length);
+								console.log('📊 Unique player IDs in boxesData:', uniquePlayersInBoxesData.length);
+								if (allPlayersInBoxesData.length !== uniquePlayersInBoxesData.length) {
+									console.error('❌ DUPLICATI TROVATI in boxesData.players PRIMA della stampa!');
+								}
+								
+								console.log('🖨️ individualStandingsUI.length:', individualStandingsUI.length);
+								console.log('🖨️ individualStandingsUI IDs:', individualStandingsUI.map(s => s.player.id));
 								
 								// Prepara dati per stampa completa usando TUTTI i match salvati
 								const tournament: Tournament = {
@@ -1093,6 +1115,12 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
 									players: b.players,
 									matches: allMatches.slice(idx * numMatchesPerBox, (idx + 1) * numMatchesPerBox)
 								}));
+								
+								console.log('🖨️ Boxes preparati per stampa:', boxes.map(b => ({
+									boxNum: b.boxNumber,
+									playersCount: b.players.length,
+									matchesCount: b.matches.length
+								})));
 								
 								printBeatTheBoxComplete(tournament, boxes as any, boxStandings as any, semifinalMatches, finalMatches, individualStandingsUI as any, getPlayerById);
 							}}
