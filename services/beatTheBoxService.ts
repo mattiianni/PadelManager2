@@ -150,12 +150,22 @@ export function calculateBoxStandings(
     
     // Processa ogni partita
     boxMatches.forEach((match, idx) => {
+        console.log(`🎾 Match ${idx + 1}:`, {
+            winner: match.winner,
+            sets: match.sets,
+            team1: match.team1,
+            team2: match.team2
+        });
+        
         if (!match.winner || match.winner === 'draw') {
+            console.log(`⚠️ Match ${idx + 1} skipped: winner=${match.winner}`);
             return;
         }
         
         const team1Games = match.sets.reduce((sum, set) => sum + set.team1, 0);
         const team2Games = match.sets.reduce((sum, set) => sum + set.team2, 0);
+        
+        console.log(`✅ Match ${idx + 1} processed: Team1=${team1Games} games, Team2=${team2Games} games, Winner=${match.winner}`);
         
         // Assegna punti e games ai giocatori
         match.team1.forEach(playerId => {
@@ -210,6 +220,8 @@ export function calculateAllBoxStandings(
     allMatches: Match[],
     boxesData: BoxData[]
 ): BoxStanding[] {
+    console.log(`📦 calculateAllBoxStandings chiamato con ${allMatches.length} match totali e ${boxesData.length} box`);
+    
     return boxesData.map((boxData, boxIdx) => {
         // CRITICAL FIX: Usa i match passati come parametro (che hanno i winner!)
         // Non usare boxData.matches che sono Omit<Match, 'id'> e non hanno winner
@@ -218,9 +230,14 @@ export function calculateAllBoxStandings(
         const endIdx = startIdx + matchesPerBox;
         const boxMatches = allMatches.slice(startIdx, endIdx);
         
+        console.log(`📦 Box ${boxData.boxNumber}: processing matches ${startIdx} to ${endIdx - 1}`, boxMatches);
+        
+        const standings = calculateBoxStandings(boxMatches, boxData.players);
+        console.log(`📦 Box ${boxData.boxNumber} standings:`, standings.map(s => ({ name: s.player.name, points: s.points, diff: s.gameDifference })));
+        
         return {
             boxNumber: boxData.boxNumber,
-            standings: calculateBoxStandings(boxMatches, boxData.players),
+            standings,
         };
     });
 }
