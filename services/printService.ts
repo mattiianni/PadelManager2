@@ -202,13 +202,11 @@ export const printRanking = (
         })()
         : eloHistory;
 
-    // Filter out players with no ELO variations
-    const playersWithHistory = rankingData.filter(player => {
-        const playerHistory = filteredEloHistory.filter(entry => entry.playerId === player.id);
-        return playerHistory.length > 0;
-    });
+    // Include ALL players of the selected ranking (even if ELO delta is 0)
+    // Players without history will still be shown with '-' details
+    const playersForReport = rankingData;
 
-    const tableRows = playersWithHistory.map(player => {
+    const tableRows = playersForReport.map(player => {
         const playerHistory = filteredEloHistory
             .filter(entry => entry.playerId === player.id)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -272,8 +270,8 @@ export const printRanking = (
 
     // Generate table rows with separator
     let tableRowsWithSeparator = '';
-    playersWithHistory.forEach((player, idx) => {
-        const prevPlayer = idx > 0 ? playersWithHistory[idx - 1] : null;
+    playersForReport.forEach((player, idx) => {
+        const prevPlayer = idx > 0 ? playersForReport[idx - 1] : null;
         const showSeparator = selectedTournamentId && presenceThreshold && presenceThreshold > 0 &&
             prevPlayer &&
             prevPlayer.presencePercentage && player.presencePercentage &&

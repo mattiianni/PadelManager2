@@ -318,7 +318,7 @@ const RankingPage: React.FC<RankingPageProps> = ({ theme }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {(showAllPlayers ? rankingData : rankingData.slice(0, 5)).map((player, idx) => {
+                                {(showAllPlayers ? rankingData : rankingData.slice(0, 8)).map((player, idx) => {
                                     const isExpanded = expandedPlayerId === player.id;
                                     const playerHistory = eloHistory
                                         .filter(entry => {
