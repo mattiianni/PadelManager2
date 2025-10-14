@@ -11,3 +11,4 @@ services:
         value: postgresql://neondb_owner:npg_QaHw1W3GbcON@ep-crimson-recipe-aglh7bqf-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: PORT
         value: 10000
+# Force Render deploy
