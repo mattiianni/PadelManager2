@@ -27,6 +27,7 @@ interface BeatTheBoxFlowProps {
     tournamentDate: string;
     clubName: string;
     tournamentName: string;
+    giornataName?: string; // Nome della serie (per tornei multi-giornata)
 }
 
 type BeatTheBoxStep = 'animating' | 'boxes' | 'semifinals' | 'finals' | 'results';
@@ -37,6 +38,7 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
     tournamentDate,
     clubName,
     tournamentName,
+    giornataName,
 }) => {
     const { addMultipleMatches, getPlayerById } = usePadelStore();
     
@@ -248,6 +250,7 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
                 club: clubName,
                 matchIds: [],
                 status: 'scheduled',
+                giornataName: giornataName || undefined,
             };
             
             await addMultipleMatches(allBoxMatches, tournamentData);
@@ -403,6 +406,7 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
                 club: clubName,
                 matchIds: [],
                 status: 'completed',
+                giornataName: giornataName || undefined,
                 // Gli ELO vengono salvati automaticamente in elo_history dal server
             };
             

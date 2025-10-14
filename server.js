@@ -622,11 +622,12 @@ app.post('/api/tournaments/bulk-matches', async (req, res) => {
         // Get their starting ELOs for this tournament (isolated ELO system)
         const playerIdsArray = Array.from(allPlayerIds);
         
-        // Find previous giornate of the same tournament (by name)
+        // Find previous giornate of the same tournament (by giornataName if present, otherwise by name)
+        const searchKey = tournament.giornataName || tournament.name;
         const previousGiornate = await sql`
             SELECT id, date 
             FROM tournaments 
-            WHERE name = ${tournament.name} 
+            WHERE (giornata_name = ${searchKey} OR (giornata_name IS NULL AND name = ${searchKey}))
             AND date < ${tournament.date}
             AND status = 'completed'
             ORDER BY date DESC

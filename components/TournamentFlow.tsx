@@ -2243,7 +2243,8 @@ const TournamentFlow: React.FC<TournamentFlowProps> = ({ pairs, onFinish }) => {
                     onFinish={onFinish}
                     tournamentDate={tournamentDate}
                     clubName={clubName}
-                    tournamentName={isCreatingNew ? tournamentName : selectedTournamentName}
+                    tournamentName={isCreatingNew ? tournamentName : `Beat the Box - ${new Date(tournamentDate).toLocaleDateString()}`}
+                    giornataName={!isCreatingNew ? selectedTournamentName : undefined}
                 />
             );
         }
