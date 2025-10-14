@@ -56,24 +56,26 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
     const [isSavingCalendar, setIsSavingCalendar] = useState(false);
     const [showBoxStandingsModal, setShowBoxStandingsModal] = useState(false);
     const [showSaveCalendarConfirm, setShowSaveCalendarConfirm] = useState(false);
+    const [tournamentStartingElos, setTournamentStartingElos] = useState<Map<string, number>>(new Map());
     
     const numBoxes = calculateNumBoxes(pairs.length);
     const numPairs = pairs.length;
 
 	// Helper: client-side ELO change approximation (per tournament) for UI display
-	// Usa gli ELO ATTUALI dei giocatori (quelli del sorteggio)
+	// Usa gli ELO CORRETTI del torneo (da tournamentStartingElos)
 	const computeIndividualEloChanges = React.useCallback((matchesForCalc: Match[]) => {
 		const K = 16; // Beat the Box K-factor
 		const deltas = new Map<string, number>();
 		
-		// Traccia gli ELO durante il torneo (partendo dagli ELO attuali)
+		// Traccia gli ELO durante il torneo (partendo dagli ELO del torneo)
 		const tournamentElos = new Map<string, number>();
 		
-		// Inizializza con gli ELO attuali di tutti i giocatori
+		// Inizializza con gli ELO di partenza del torneo (recuperati dal backend)
 		boxesData.forEach(box => {
 			box.players.forEach(p => {
-				tournamentElos.set(p.id, p.currentElo);
-				console.log(`🎯 Inizializzazione ELO per ${p.name} ${p.surname}: ${p.currentElo}`);
+				const startingElo = tournamentStartingElos.get(p.id) || 1500;
+				tournamentElos.set(p.id, startingElo);
+				console.log(`🎯 Inizializzazione ELO per ${p.name} ${p.surname}: ${startingElo} (${tournamentStartingElos.has(p.id) ? 'da backend' : 'default'})`);
 			});
 		});
 		
@@ -124,7 +126,7 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
 		}));
 		
 		return deltas;
-	}, [getPlayerById, boxesData]);
+	}, [getPlayerById, boxesData, tournamentStartingElos]);
 
 	const individualStandingsUI = React.useMemo(() => {
 		console.log('🔵 Calcolo individualStandingsUI...');
@@ -201,9 +203,62 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
         printBeatTheBoxBlank(tournamentDetails, boxesData, getPlayerById);
     };
     
-    // Inizializza i box dopo l'animazione
+    // Recupera ELO di partenza dal backend
     React.useEffect(() => {
-        if (step === 'animating') {
+        const fetchStartingElos = async () => {
+            try {
+                const allPlayerIds = pairs.flatMap(([p1, p2]) => [p1.id, p2.id]);
+                
+                console.log('🔍 Richiedo ELO di partenza al backend...', {
+                    tournamentName,
+                    giornataName,
+                    playerIds: allPlayerIds.length,
+                    date: tournamentDate
+                });
+                
+                const response = await fetch('/api/tournaments/starting-elos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tournamentName,
+                        giornataName,
+                        playerIds: allPlayerIds,
+                        date: tournamentDate
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch starting ELOs');
+                }
+                
+                const { startingElos } = await response.json();
+                const elosMap = new Map(Object.entries(startingElos).map(([id, elo]) => [id, elo as number]));
+                setTournamentStartingElos(elosMap);
+                
+                console.log('✅ ELO di partenza ricevuti:', Object.keys(startingElos).length);
+                Object.entries(startingElos).forEach(([id, elo]) => {
+                    const player = pairs.flat().find(p => p.id === id);
+                    if (player) {
+                        console.log(`   ${player.name} ${player.surname}: ${elo}`);
+                    }
+                });
+            } catch (error) {
+                console.error('❌ Errore nel recuperare ELO di partenza:', error);
+                // Fallback: usa tutti 1500
+                const fallbackElos = new Map<string, number>();
+                pairs.flatMap(([p1, p2]) => [p1.id, p2.id]).forEach(id => fallbackElos.set(id, 1500));
+                setTournamentStartingElos(fallbackElos);
+            }
+        };
+        
+        if (pairs.length > 0) {
+            fetchStartingElos();
+        }
+    }, [pairs, tournamentName, giornataName, tournamentDate]);
+    
+    // Inizializza i box dopo l'animazione E dopo aver ricevuto gli ELO
+    React.useEffect(() => {
+        if (step === 'animating' && tournamentStartingElos.size > 0) {
             setTimeout(() => {
                 // Ordina coppie per ELO
                 const sortedPairs = sortPairsByElo(pairs);
@@ -218,7 +273,7 @@ const BeatTheBoxFlow: React.FC<BeatTheBoxFlowProps> = ({
                 setStep('boxes');
             }, 3000); // Durata animazione
         }
-    }, [step, pairs, tournamentDate]);
+    }, [step, pairs, tournamentDate, tournamentStartingElos]);
     
     // Conferma salvataggio calendario
     const handleConfirmSaveCalendar = () => {

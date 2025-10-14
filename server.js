@@ -257,6 +257,81 @@ app.get('/api/data', async (req, res) => {
     }
 });
 
+// POST /api/tournaments/starting-elos - Get starting ELOs for a tournament
+app.post('/api/tournaments/starting-elos', async (req, res) => {
+    try {
+        const { tournamentName, giornataName, playerIds, date } = req.body;
+        
+        if (!tournamentName || !playerIds || !Array.isArray(playerIds) || !date) {
+            return res.status(400).json({ message: 'Missing required fields: tournamentName, playerIds, date' });
+        }
+        
+        const searchKey = giornataName || tournamentName;
+        
+        // Find previous giornate of the same tournament series
+        // If giornataName is provided, it's the series name, so look for tournaments with that name
+        const previousGiornate = await sql`
+            SELECT id, date 
+            FROM tournaments 
+            WHERE name = ${searchKey}
+            AND date <= ${date}
+            AND status = 'completed'
+            ORDER BY date DESC, id DESC
+        `;
+        
+        logger.debug("Starting ELOs request", { 
+            tournamentName, 
+            giornataName, 
+            searchKey,
+            previousGiornateCount: previousGiornate.length,
+            playerIds: playerIds.length 
+        });
+        
+        const startingElos = {};
+        
+        for (const playerId of playerIds) {
+            if (previousGiornate.length > 0) {
+                // Get ELO from the most recent previous giornata
+                const lastGiornataId = previousGiornate[0].id;
+                const eloHistoryResult = await sql`
+                    SELECT elo_after 
+                    FROM elo_history 
+                    WHERE player_id = ${playerId} 
+                    AND event_id = ${lastGiornataId} 
+                    AND type = 'tournament'
+                `;
+                
+                if (eloHistoryResult.length > 0) {
+                    startingElos[playerId] = eloHistoryResult[0].elo_after;
+                    logger.debug("Player starting ELO from previous giornata", { 
+                        playerId, 
+                        elo: eloHistoryResult[0].elo_after 
+                    });
+                } else {
+                    // Player didn't participate in previous giornata
+                    startingElos[playerId] = 1500;
+                    logger.debug("Player starting ELO (first time)", { playerId, elo: 1500 });
+                }
+            } else {
+                // First giornata of this tournament series
+                startingElos[playerId] = 1500;
+                logger.debug("Player starting ELO (new tournament)", { playerId, elo: 1500 });
+            }
+        }
+        
+        logger.info("Starting ELOs calculated", { 
+            tournamentName,
+            giornataName,
+            playersCount: Object.keys(startingElos).length 
+        });
+        
+        res.json({ startingElos });
+    } catch (error) {
+        logger.error('Failed to get starting ELOs', error);
+        res.status(500).json({ message: 'Failed to get starting ELOs', error: error.message });
+    }
+});
+
 // POST /api/players - Add player
 app.post('/api/players', async (req, res) => {
     try {
@@ -606,12 +681,31 @@ app.post('/api/tournaments/bulk-matches', async (req, res) => {
             return res.status(400).json({ message: 'Missing or invalid tournament/matches data' });
         }
 
+        let tournamentId;
+        
+        // ALWAYS create a new tournament entry for each giornata
+        // giornataName is used to link multiple giornate to the same tournament series
         const tournamentResult = await sql`
             INSERT INTO tournaments (name, type, date, club, status, giornata_name, final_standings) 
             VALUES (${tournament.name}, ${tournament.type}, ${tournament.date}, ${tournament.club}, ${tournament.status || 'scheduled'}, ${tournament.giornataName || null}, ${tournament.finalStandings ? JSON.stringify(tournament.finalStandings) : null})
             RETURNING id
         `;
-        const tournamentId = tournamentResult[0].id;
+        tournamentId = tournamentResult[0].id;
+        
+        if (tournament.giornataName) {
+            logger.info("Created new giornata linked to tournament series", { 
+                tournamentId, 
+                giornataName: tournament.giornataName,
+                date: tournament.date,
+                name: tournament.name
+            });
+        } else {
+            logger.info("Created new standalone tournament", { 
+                tournamentId, 
+                name: tournament.name,
+                date: tournament.date
+            });
+        }
 
         const allPlayerIds = new Set();
         matches.forEach((match) => {
@@ -622,15 +716,16 @@ app.post('/api/tournaments/bulk-matches', async (req, res) => {
         // Get their starting ELOs for this tournament (isolated ELO system)
         const playerIdsArray = Array.from(allPlayerIds);
         
-        // Find previous giornate of the same tournament (by giornataName if present, otherwise by name)
+        // Find previous giornate of the same tournament series
+        // If giornataName is provided, it's the series name, so look for tournaments with that name
         const searchKey = tournament.giornataName || tournament.name;
         const previousGiornate = await sql`
             SELECT id, date 
             FROM tournaments 
-            WHERE (giornata_name = ${searchKey} OR (giornata_name IS NULL AND name = ${searchKey}))
-            AND date < ${tournament.date}
+            WHERE name = ${searchKey}
+            AND date <= ${tournament.date}
             AND status = 'completed'
-            ORDER BY date DESC
+            ORDER BY date DESC, id DESC
         `;
         
         logger.debug("Previous giornate found", { tournament: tournament.name, count: previousGiornate.length });
