@@ -634,43 +634,30 @@ app.post('/api/tournaments/bulk-matches', async (req, res) => {
         
         logger.debug("Previous giornate found", { tournament: tournament.name, count: previousGiornate.length });
         
-        // Calculate starting ELO for each player in this tournament
+        // Calculate starting ELO for each player in this tournament (sistema isolato)
         const playersData = {};
-        
-        // Beat the Box: usa SEMPRE gli ELO globali attuali (non sistema isolato)
-        if (tournament.type === 'Beat the Box') {
-            for (const playerId of playerIdsArray) {
-                const playerResult = await sql`SELECT current_elo FROM players WHERE id = ${playerId}`;
-                playersData[playerId] = playerResult[0].current_elo;
-                logger.debug("Player ELO starting point (Beat the Box)", { playerId, elo: playerResult[0].current_elo, source: "global current_elo" });
-            }
-        } else {
-            // Altri tornei: usa sistema isolato per giornate multiple
-            for (const playerId of playerIdsArray) {
-                if (previousGiornate.length > 0) {
-                    // Get ELO from the most recent previous giornata of this tournament
-                    const lastGiornataId = previousGiornate[0].id;
-                    const eloHistoryResult = await sql`
-                        SELECT elo_after 
-                        FROM elo_history 
-                        WHERE player_id = ${playerId} 
-                        AND event_id = ${lastGiornataId} 
-                        AND type = 'tournament'
-                    `;
-                    
-                    if (eloHistoryResult.length > 0) {
-                        playersData[playerId] = eloHistoryResult[0].elo_after;
-                        logger.debug("Player ELO starting point", { playerId, elo: eloHistoryResult[0].elo_after, source: "previous giornata" });
-                    } else {
-                        // Player didn't participate in previous giornata, start from 1500
-                        playersData[playerId] = 1500;
-                        logger.debug("Player ELO starting point", { playerId, elo: 1500, source: "first time" });
-                    }
+        for (const playerId of playerIdsArray) {
+            if (previousGiornate.length > 0) {
+                // Get ELO from the most recent previous giornata of this tournament
+                const lastGiornataId = previousGiornate[0].id;
+                const eloHistoryResult = await sql`
+                    SELECT elo_after 
+                    FROM elo_history 
+                    WHERE player_id = ${playerId} 
+                    AND event_id = ${lastGiornataId} 
+                    AND type = 'tournament'
+                `;
+                if (eloHistoryResult.length > 0) {
+                    playersData[playerId] = eloHistoryResult[0].elo_after;
+                    logger.debug("Player ELO starting point", { playerId, elo: eloHistoryResult[0].elo_after, source: "previous giornata" });
                 } else {
-                    // First giornata of this tournament, start from 1500
                     playersData[playerId] = 1500;
-                    logger.debug("Player ELO starting point", { playerId, elo: 1500, source: "first giornata" });
+                    logger.debug("Player ELO starting point", { playerId, elo: 1500, source: "first time" });
                 }
+            } else {
+                // First giornata of this tournament series, start from 1500
+                playersData[playerId] = 1500;
+                logger.debug("Player ELO starting point", { playerId, elo: 1500, source: "first giornata" });
             }
         }
 
@@ -842,40 +829,28 @@ app.put('/api/tournaments/complete', async (req, res) => {
         
         logger.debug("Previous giornate found", { tournament: tournamentName, count: previousGiornate.length });
         
-        // Calculate starting ELO for each player in this tournament
+        // Calculate starting ELO for each player in this tournament (sistema isolato)
         const playersData = {};
-        
-        // Beat the Box: usa SEMPRE gli ELO globali attuali (non sistema isolato)
-        if (tournamentType === 'Beat the Box') {
-            for (const playerId of playerIdsArray) {
-                const playerResult = await sql`SELECT current_elo FROM players WHERE id = ${playerId}`;
-                playersData[playerId] = playerResult[0].current_elo;
-                logger.debug("Player ELO starting point (Beat the Box)", { playerId: playerId.substring(0, 8), elo: playerResult[0].current_elo, source: "global current_elo" });
-            }
-        } else {
-            // Altri tornei: usa sistema isolato per giornate multiple
-            for (const playerId of playerIdsArray) {
-                if (previousGiornate.length > 0) {
-                    const lastGiornataId = previousGiornate[0].id;
-                    const eloHistoryResult = await sql`
-                        SELECT elo_after 
-                        FROM elo_history 
-                        WHERE player_id = ${playerId} 
-                        AND event_id = ${lastGiornataId} 
-                        AND type = 'tournament'
-                    `;
-                    
-                    if (eloHistoryResult.length > 0) {
-                        playersData[playerId] = eloHistoryResult[0].elo_after;
-                        logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: eloHistoryResult[0].elo_after, source: "previous giornata" });
-                    } else {
-                        playersData[playerId] = 1500;
-                        logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: 1500, source: "first time" });
-                    }
+        for (const playerId of playerIdsArray) {
+            if (previousGiornate.length > 0) {
+                const lastGiornataId = previousGiornate[0].id;
+                const eloHistoryResult = await sql`
+                    SELECT elo_after 
+                    FROM elo_history 
+                    WHERE player_id = ${playerId} 
+                    AND event_id = ${lastGiornataId} 
+                    AND type = 'tournament'
+                `;
+                if (eloHistoryResult.length > 0) {
+                    playersData[playerId] = eloHistoryResult[0].elo_after;
+                    logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: eloHistoryResult[0].elo_after, source: "previous giornata" });
                 } else {
                     playersData[playerId] = 1500;
-                    logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: 1500, source: "first giornata" });
+                    logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: 1500, source: "first time" });
                 }
+            } else {
+                playersData[playerId] = 1500;
+                logger.debug("Player ELO starting point", { playerId: playerId.substring(0, 8), elo: 1500, source: "first giornata" });
             }
         }
         
