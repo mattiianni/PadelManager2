@@ -76,6 +76,11 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint for platform probes
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
 // Database connection - ALWAYS USE NEON (dev and prod)
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -93,6 +98,12 @@ logger.info('Database connected', {
 
 // Helper function to create tables if they don't exist
 async function ensureTablesExist() {
+    // Ensure pgcrypto is available for gen_random_uuid()
+    try {
+        await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
+    } catch (error) {
+        logger.warn('Failed to create pgcrypto extension (may already exist or not permitted)', { message: error.message });
+    }
     await sql`
         CREATE TABLE IF NOT EXISTS players (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
