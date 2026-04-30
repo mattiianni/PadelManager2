@@ -837,6 +837,33 @@ app.delete('/api/admin/codes/:id', requireAdmin, async (req, res) => {
     }
 });
 
+// DELETE /api/admin/codes/:id/permanent - Permanently delete a deactivated access code
+app.delete('/api/admin/codes/:id/permanent', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await sql`
+            SELECT id, is_active
+            FROM access_codes
+            WHERE id = ${id}
+        `;
+
+        if (existing.length === 0) {
+            return res.status(404).json({ message: 'Codice non trovato' });
+        }
+
+        if (existing[0].is_active) {
+            return res.status(400).json({ message: 'Disattiva prima il codice' });
+        }
+
+        await sql`DELETE FROM access_codes WHERE id = ${id}`;
+        logger.info('Access code permanently deleted', { id });
+        res.json({ message: 'Codice cancellato' });
+    } catch (error) {
+        logger.error('Failed to permanently delete code', error);
+        res.status(500).json({ message: 'Errore nella cancellazione codice' });
+    }
+});
+
 // POST /api/admin/impersonate - Switch to another workspace (admin only)
 app.post('/api/admin/impersonate', requireAdmin, async (req, res) => {
     try {

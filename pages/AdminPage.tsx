@@ -213,6 +213,16 @@ const AdminPage: React.FC = () => {
         }
     };
 
+    const handleDeleteCode = async (codeId: string) => {
+        if (!confirm('Sei sicuro di voler cancellare definitivamente questo codice disattivato?')) return;
+        try {
+            await adminApi(`/api/admin/codes/${codeId}/permanent`, { method: 'DELETE' });
+            await fetchAll();
+        } catch (error: any) {
+            alert(error.message);
+        }
+    };
+
     const formatDate = (d: string | null) => {
         if (!d) return '-';
         return new Date(d).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -490,6 +500,14 @@ const AdminPage: React.FC = () => {
                                                         Disattiva
                                                     </button>
                                                     </>
+                                                )}
+                                                {!code.is_active && (
+                                                    <button
+                                                        onClick={() => handleDeleteCode(code.id)}
+                                                        className="text-xs text-red-600 hover:text-red-800 dark:hover:text-red-400 font-medium"
+                                                    >
+                                                        Cancella
+                                                    </button>
                                                 )}
                                             </td>
                                         </tr>
