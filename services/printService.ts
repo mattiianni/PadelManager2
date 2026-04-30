@@ -6498,7 +6498,7 @@ export const printPlayerProfiles = (
 
                 <!-- Footer -->
                 <div class="page-footer">
-                    Padel ELO Manager v4.0.10 &middot; ${new Date().toLocaleDateString('it-IT')} &middot; Profilo ${p.name} ${p.surname}
+                    Padel ELO Manager v${APP_VERSION} &middot; ${new Date().toLocaleDateString('it-IT')} &middot; Profilo ${p.name} ${p.surname}
                 </div>
             </div>
         `;

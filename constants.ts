@@ -1,5 +1,5 @@
 
-export const APP_VERSION = '4.0.12';
+export const APP_VERSION = '4.1.0';
 
 export const INITIAL_ELO = 1500;
 

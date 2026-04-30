@@ -2,7 +2,7 @@
 
 Applicazione full-stack per la gestione di tornei di padel con ranking ELO, statistiche, PDF e isolamento dati per workspace.
 
-Versione documentata: `v4.0.12`
+Versione documentata: `v4.1.0`
 
 ## Stato attuale
 
@@ -14,6 +14,20 @@ Versione documentata: `v4.0.12`
 - PWA: attiva tramite `vite-plugin-pwa`
 
 I file `pages/_app.tsx`, `pages/_document.tsx`, `pages/index.tsx` e `next.config.js` sono residui storici. Il runtime effettivo dell'app e' Vite, con bootstrap da `index.tsx`.
+
+## Routine release
+
+- Versione corrente: `4.1.0`
+- Dalla release successiva si incrementa la patch: `4.1.1`, `4.1.2`, ...
+- Quando cambia il mese reale, si aggiorna anche il mese visibile nei riferimenti applicativi e documentali (`Apr`, `Mag`, `Giu`, ...).
+- Ad ogni release vanno aggiornati i riferimenti versione nell'app, la documentazione `.md`, il `README`, il backup `.zip` e il dump completo `.txt` del codice.
+
+## Aggiornamenti v4.1.0
+
+- Versione prodotto aggiornata a `4.1.0` con nuova routine di versioning patch-first (`4.1.1`, `4.1.2`, ...).
+- Reskin UI Stitch consolidato su login, header, sidebar, dashboard, classifiche e tornei con correzioni di contrasto in tema chiaro.
+- PWA allineata agli asset correnti con auto refresh aggressivo lato service worker e controllo build id per rendere visibili i deploy piu' rapidamente.
+- Repository GitHub riallineata alla versione locale corrente e documentazione di backup/esportazione aggiornata.
 
 ## Aggiornamenti v4.0.12
 
