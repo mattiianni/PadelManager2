@@ -174,22 +174,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToResults }) =>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="stitch-kpi">
                     <div className="section-kicker">Giocatori</div>
-                    <div className="mt-3 text-3xl font-black text-app dark:text-white">{stats.activePlayers}</div>
+                    <div className="mt-3 text-3xl font-black text-sky-500 dark:text-sky-300">{stats.activePlayers}</div>
                     <div className="mt-1 text-sm text-app-muted dark:text-slate-400">Roster attivo</div>
                 </div>
                 <div className="stitch-kpi">
                     <div className="section-kicker">Partite</div>
-                    <div className="mt-3 text-3xl font-black text-app dark:text-white">{stats.totalMatches}</div>
+                    <div className="mt-3 text-3xl font-black text-sky-500 dark:text-sky-300">{stats.totalMatches}</div>
                     <div className="mt-1 text-sm text-app-muted dark:text-slate-400">Storico registrato</div>
                 </div>
                 <div className="stitch-kpi">
                     <div className="section-kicker">Giornate</div>
-                    <div className="mt-3 text-3xl font-black text-app dark:text-white">{stats.completedTournaments}</div>
+                    <div className="mt-3 text-3xl font-black text-sky-500 dark:text-sky-300">{stats.completedTournaments}</div>
                     <div className="mt-1 text-sm text-app-muted dark:text-slate-400">Completate</div>
                 </div>
                 <div className="stitch-kpi">
                     <div className="section-kicker">Avg ELO</div>
-                    <div className="mt-3 text-3xl font-black text-app dark:text-white">{stats.avgElo.toFixed(0)}</div>
+                    <div className="mt-3 text-3xl font-black text-sky-500 dark:text-sky-300">{stats.avgElo.toFixed(0)}</div>
                     <div className="mt-1 text-sm text-app-muted dark:text-slate-400">Equilibrio medio</div>
                 </div>
             </div>

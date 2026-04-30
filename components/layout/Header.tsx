@@ -20,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme }) =>
                     <div className="flex min-w-0 flex-1 items-start">
                         <button
                             onClick={toggleSidebar}
-                            className="mr-4 rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus:outline-none md:hidden"
+                            className="mr-4 rounded-xl border border-white/10 bg-white/5 p-2 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200 focus:outline-none md:hidden"
                             aria-label="Toggle sidebar"
                         >
                             <span className="material-symbols-outlined text-[22px]">menu</span>
@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme }) =>
                         <ThemeToggle theme={theme} onToggle={toggleTheme} />
                         <button
                             onClick={logout}
-                            className="rounded-xl border border-white/10 bg-white/5 p-[0.55rem] text-slate-300 transition-colors hover:bg-red-500/12 hover:text-red-300"
+                            className="rounded-xl border border-white/10 bg-white/5 p-[0.55rem] text-slate-400 transition-colors hover:bg-red-500/12 hover:text-red-300"
                             title="Esci"
                             aria-label="Logout"
                         >

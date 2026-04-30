@@ -11,7 +11,7 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ theme, onToggle }) => {
     return (
         <button
             onClick={onToggle}
-            className="rounded-xl border border-white/10 bg-white/5 p-[0.55rem] text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-300/40"
+            className="rounded-xl border border-white/10 bg-white/5 p-[0.55rem] text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-300/40"
             aria-label="Toggle theme"
         >
             <span className="flex h-[1.125rem] w-[1.125rem] items-center justify-center">

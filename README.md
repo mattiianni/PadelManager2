@@ -2,7 +2,7 @@
 
 Applicazione full-stack per la gestione di tornei di padel con ranking ELO, statistiche, PDF e isolamento dati per workspace.
 
-Versione documentata: `v4.1.0`
+Versione documentata: `v4.1.1`
 
 ## Stato attuale
 
@@ -17,10 +17,16 @@ I file `pages/_app.tsx`, `pages/_document.tsx`, `pages/index.tsx` e `next.config
 
 ## Routine release
 
-- Versione corrente: `4.1.0`
-- Dalla release successiva si incrementa la patch: `4.1.1`, `4.1.2`, ...
+- Versione corrente: `4.1.1`
+- Dalla release successiva si incrementa la patch: `4.1.2`, `4.1.3`, ...
 - Quando cambia il mese reale, si aggiorna anche il mese visibile nei riferimenti applicativi e documentali (`Apr`, `Mag`, `Giu`, ...).
 - Ad ogni release vanno aggiornati i riferimenti versione nell'app, la documentazione `.md`, il `README`, il backup `.zip` e il dump completo `.txt` del codice.
+
+## Aggiornamenti v4.1.1
+
+- Versione prodotto aggiornata a `4.1.1`.
+- Header: icone leggermente piu' scure e pulizia metadata.
+- Dashboard: KPI principali riallineati al colore del titolo applicazione.
 
 ## Aggiornamenti v4.1.0
 

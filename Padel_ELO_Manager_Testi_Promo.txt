@@ -1,5 +1,5 @@
 ================================================================
-PADEL ELO MANAGER v4.1.0 - TESTI PROMOZIONALI
+PADEL ELO MANAGER v4.1.1 - TESTI PROMOZIONALI
 ================================================================
 
 
@@ -96,7 +96,7 @@ Resto a disposizione per qualsiasi domanda.
 
 Cordiali saluti,
 Mattia Ianniello
-Padel ELO Manager v4.1.0
+Padel ELO Manager v4.1.1
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
