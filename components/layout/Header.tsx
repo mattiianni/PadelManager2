@@ -30,12 +30,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme }) =>
                                 <h1 className="text-[1.62rem] font-black leading-none tracking-tight text-sky-500 dark:text-sky-300 sm:text-[1.78rem] md:text-[2.25rem]">
                                     Padel Elo Manager
                                 </h1>
-                                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
-                                    Gestore Tornei Padel
-                                </p>
                             </div>
                             <div className="grid grid-cols-1 gap-1 text-xs leading-tight text-slate-400 md:grid-cols-[auto_auto] md:items-center md:gap-3">
-                                <p>v{APP_VERSION} / @Mattia Ianniello, Apr 2026</p>
+                                <p>v{APP_VERSION} / Apr 2026</p>
                                 {workspace && (
                                     <p className="truncate text-sky-300">
                                         {workspace.name}
