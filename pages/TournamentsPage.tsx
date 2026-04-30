@@ -907,26 +907,26 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                 {!teamTournamentNeedsConfiguration && isExpanded && (
                                     <div className="space-y-3">
                                         {groupRepresentsTeamTournament && teamTournamentRoot && (
-                                            <div className="rounded-2xl border border-slate-200/45 bg-[linear-gradient(135deg,rgba(137,206,255,0.16),rgba(241,245,251,0.92))] p-4 shadow-sm dark:border-white/6 dark:bg-[linear-gradient(135deg,rgba(137,206,255,0.10),rgba(255,255,255,0.03))] dark:text-white">
+                                            <div className="rounded-2xl border border-slate-200/45 bg-[linear-gradient(135deg,rgba(137,206,255,0.16),rgba(241,245,251,0.92))] p-3 shadow-sm dark:border-white/6 dark:bg-[linear-gradient(135deg,rgba(137,206,255,0.10),rgba(255,255,255,0.03))] dark:text-white sm:p-4">
                                                 <div>
-                                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                                    <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-2 sm:items-center sm:gap-3">
                                                         <span className={teamTournamentInfoPillClass}>
                                                             Gestione torneo
                                                         </span>
-                                                        <div className="flex flex-shrink-0 items-center gap-1.5">
+                                                        <div className="flex flex-shrink-0 items-center gap-1">
                                                             <Button
                                                                 size="sm"
                                                                 variant="secondary"
                                                                 onClick={() => {
                                                                     if (teamTournamentRootId) onNavigateToTeamTournamentConfiguration(teamTournamentRootId);
                                                                 }}
-                                                                className={tournamentActionButtonOnDarkClass}
+                                                                className={`${tournamentActionButtonOnDarkClass} !p-1.25 sm:!p-1.5`}
                                                                 aria-label="Edit Team Tournament"
                                                             >
                                                                 <PencilIcon />
                                                             </Button>
-                                                            <Button size="sm" variant="secondary" onClick={() => handlePrint(teamTournamentRoot)} aria-label="Print Team Tournament" className={tournamentActionButtonOnDarkClass}><PrintIcon /></Button>
-                                                            <Button size="sm" variant="danger" onClick={() => handleDelete(teamTournamentRoot.id)} className={tournamentActionButtonClass} aria-label="Delete Team Tournament"><TrashIcon /></Button>
+                                                            <Button size="sm" variant="secondary" onClick={() => handlePrint(teamTournamentRoot)} aria-label="Print Team Tournament" className={`${tournamentActionButtonOnDarkClass} !p-1.25 sm:!p-1.5`}><PrintIcon /></Button>
+                                                            <Button size="sm" variant="danger" onClick={() => handleDelete(teamTournamentRoot.id)} className={`${tournamentActionButtonClass} !p-1.25 sm:!p-1.5`} aria-label="Delete Team Tournament"><TrashIcon /></Button>
                                                         </div>
                                                     </div>
                                                     <p className="text-sm text-app-soft dark:text-white/80">
@@ -942,7 +942,7 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                             : totalRoundRobin;
                                                         const label = total > 0 ? `${completed} su ${total}` : `${completed}`;
                                                         return (
-                                                            <p className="mt-0.5 text-sm text-app-soft dark:text-white/80">
+                                                            <p className="mt-0.5 text-sm leading-tight text-app-soft dark:text-white/80">
                                                                 {isEliminationDirect ? 'Sfide completate' : 'Partite completate'}: <strong className="font-semibold text-app dark:text-white">{label}</strong>
                                                             </p>
                                                         );
@@ -950,28 +950,28 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                 </div>
 
                                                 {teamTournamentConfig && teamTournamentTeams.length > 0 && !isEliminationDirect && (
-                                                    <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200/45 bg-white/72 p-3 dark:border-white/8 dark:bg-white/5">
-                                                        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted dark:text-white/80">
+                                                    <div className="mt-3 overflow-x-auto border-t border-slate-200/45 pt-2.5 dark:border-white/8 sm:mt-4 sm:rounded-xl sm:border sm:bg-white/72 sm:p-3 dark:sm:bg-white/5">
+                                                        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-app-muted dark:text-white/80 sm:mb-2 sm:text-xs">
                                                             {isRoundRobinComplete ? 'Classifica Finale Round Robin' : 'Classifica provvisoria'}
                                                         </div>
-                                                        <table className="w-full min-w-[300px] text-sm">
+                                                        <table className="w-full min-w-[280px] text-[12px] sm:min-w-[300px] sm:text-sm">
                                                             <thead>
                                                                 <tr className="text-app-muted dark:text-white/80">
-                                                                    <th className="text-left py-1 pr-3">Pos</th>
-                                                                    <th className="text-left py-1 pr-3">Squadra</th>
-                                                                    <th className="text-center py-1 px-2">{teamTournamentConfig.scoringType === 'Differenza Games' ? 'Diff' : 'Pt'}</th>
-                                                                    <th className="text-center py-1 px-2">G / V / P</th>
+                                                                    <th className="py-0.5 pr-2 text-left sm:py-1 sm:pr-3">Pos</th>
+                                                                    <th className="py-0.5 pr-2 text-left sm:py-1 sm:pr-3">Squadra</th>
+                                                                    <th className="px-1.5 py-0.5 text-center sm:px-2 sm:py-1">{teamTournamentConfig.scoringType === 'Differenza Games' ? 'Diff' : 'Pt'}</th>
+                                                                    <th className="px-1.5 py-0.5 text-center sm:px-2 sm:py-1">G / V / P</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 {calculateTeamTournamentStandings(teamTournamentTeams, teamTournamentMatchdays, teamTournamentConfig.scoringType).map((row, index) => {
                                                                     const isQualified = qualifiedTeamNumbers.includes(row.teamNumber);
                                                                     return (
-                                                                        <tr key={row.teamNumber} className={isQualified ? 'rounded-md bg-green-100/90 text-emerald-950 dark:bg-green-200/90' : 'text-app dark:text-white'}>
-                                                                            <td className="py-1 pr-3">{index + 1}</td>
-                                                                            <td className="py-1 pr-3 font-medium">{row.teamName}</td>
-                                                                            <td className="py-1 px-2 text-center">{teamTournamentConfig.scoringType === 'Differenza Games' ? (row.gamesDiff >= 0 ? `+${row.gamesDiff}` : `${row.gamesDiff}`) : row.points}</td>
-                                                                            <td className="py-1 px-2 text-center whitespace-nowrap">{row.played} / {row.won} / {row.lost}</td>
+                                                                        <tr key={row.teamNumber} className={isQualified ? 'rounded-md bg-green-100/80 text-emerald-950 dark:bg-green-200/90' : 'text-app dark:text-white'}>
+                                                                            <td className="py-0.5 pr-2 sm:py-1 sm:pr-3">{index + 1}</td>
+                                                                            <td className="py-0.5 pr-2 font-medium sm:py-1 sm:pr-3">{row.teamName}</td>
+                                                                            <td className="px-1.5 py-0.5 text-center sm:px-2 sm:py-1">{teamTournamentConfig.scoringType === 'Differenza Games' ? (row.gamesDiff >= 0 ? `+${row.gamesDiff}` : `${row.gamesDiff}`) : row.points}</td>
+                                                                            <td className="whitespace-nowrap px-1.5 py-0.5 text-center sm:px-2 sm:py-1">{row.played} / {row.won} / {row.lost}</td>
                                                                         </tr>
                                                                     );
                                                                 })}
@@ -984,11 +984,11 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                     const fx = teamTournamentFixtures;
                                                     if (!teamTournamentRootId || ((!isRoundRobinComplete && !isEliminationDirect) || fx.length === 0)) return null;
                                                     return (
-                                                        <div className="mt-4 rounded-xl border border-slate-200/45 bg-white/72 p-3 dark:border-white/10 dark:bg-white/5">
-                                                            <div className="text-xs font-bold tracking-wide uppercase text-app-muted dark:text-white/80">
+                                                        <div className="mt-3 border-t border-slate-200/45 pt-2.5 dark:border-white/10 sm:mt-4 sm:rounded-xl sm:border sm:bg-white/72 sm:p-3 dark:sm:bg-white/5">
+                                                            <div className="text-[11px] font-bold uppercase tracking-wide text-app-muted dark:text-white/80 sm:text-xs">
                                                                 {isEliminationDirect ? 'Tabellone' : 'Fase finale'}
                                                             </div>
-                                                            <div className="mt-2 space-y-2">
+                                                            <div className="mt-2 space-y-1.5 sm:space-y-2">
                                                                 {fx.map(f => {
                                                                     const left = resolveFixtureTeamName(teamTournamentRootId, f, 'left');
                                                                     const right = resolveFixtureTeamName(teamTournamentRootId, f, 'right');
@@ -998,30 +998,30 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                                     return (
                                                                         <div
                                                                             key={f.id}
-                                                                            className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border ${
+                                                                            className={`grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1.5 rounded-lg border px-2.5 py-2 sm:gap-x-3 sm:px-3 ${
                                                                                 isGrandFinal
                                                                                     ? 'bg-amber-100/95 border-amber-300 !text-slate-900'
                                                                                     : 'bg-slate-50/85 border-slate-200/45 dark:bg-white/10 dark:border-white/10'
                                                                             }`}
                                                                         >
                                                                             <div className="min-w-0">
-                                                                                <div className={`text-xs font-semibold ${isGrandFinal ? '!text-slate-700' : 'text-app-muted dark:text-white/90'}`}>{fixturePhaseLabel(f.phase, f.slot)}</div>
-                                                                                <div className={`text-sm font-semibold truncate ${isGrandFinal ? '!text-slate-900' : 'text-app dark:text-white'}`}>
+                                                                                <div className={`text-[11px] font-semibold sm:text-xs ${isGrandFinal ? '!text-slate-700' : 'text-app-muted dark:text-white/90'}`}>{fixturePhaseLabel(f.phase, f.slot)}</div>
+                                                                                <div className={`text-sm font-semibold leading-tight sm:truncate ${isGrandFinal ? '!text-slate-900' : 'text-app dark:text-white'}`}>
                                                                                     {left} <span className={`font-normal ${isGrandFinal ? '!text-slate-600' : 'text-app-soft dark:text-white/80'}`}>vs</span> {right}
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="flex gap-2 flex-shrink-0">
+                                                                            <div className="flex flex-shrink-0 justify-self-end self-start gap-1.5">
                                                                                 {canOpen ? (
                                                                                     <Button
                                                                                         size="sm"
                                                                                         onClick={() => onNavigateToTeamTournamentMatchdayResults(f.tournamentDayId!)}
-                                                                                        className="!bg-orange-500 hover:!bg-orange-600 !border-orange-700/50 dark:!border-orange-300/35 !text-white !px-3 !py-1.5 !text-xs"
+                                                                                        className="!bg-orange-500 hover:!bg-orange-600 !border-orange-700/50 dark:!border-orange-300/35 !text-white !px-2.5 !py-1.25 !text-[11px] sm:!px-3 sm:!py-1.5 sm:!text-xs"
                                                                                     >
                                                                                         Inserisci risultati
                                                                                     </Button>
                                                                                 ) : f.status === 'completed' ? (
                                                                                     <span
-                                                                                        className={`inline-flex items-center rounded-md border px-3 py-1 text-xs font-bold ${
+                                                                                        className={`inline-flex items-center rounded-md border px-2.5 py-0.75 text-[11px] font-bold sm:px-3 sm:py-1 sm:text-xs ${
                                                                                             isGrandFinal
                                                                                                 ? 'border-slate-900/15 bg-slate-900/5 text-slate-700'
                                                                                                 : 'border-slate-200/45 bg-slate-100/80 text-app-muted dark:border-white/15 dark:bg-white/10 dark:text-white/80'
@@ -1034,7 +1034,7 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                                                         size="sm"
                                                                                         onClick={() => onNavigateToTeamTournamentFixture(teamTournamentRootId, f.id)}
                                                                                         disabled={!ready}
-                                                                                        className="!bg-orange-500 hover:!bg-orange-600 !border-orange-700/50 dark:!border-orange-300/35 !text-white !px-3 !py-1.5 !text-xs disabled:!border-slate-200/45 disabled:!bg-slate-100/80 disabled:!text-slate-400 dark:disabled:!border-white/10 dark:disabled:!bg-white/15 dark:disabled:!text-white/50"
+                                                                                        className="!bg-orange-500 hover:!bg-orange-600 !border-orange-700/50 dark:!border-orange-300/35 !text-white !px-2.5 !py-1.25 !text-[11px] sm:!px-3 sm:!py-1.5 sm:!text-xs disabled:!border-slate-200/45 disabled:!bg-slate-100/80 disabled:!text-slate-400 dark:disabled:!border-white/10 dark:disabled:!bg-white/15 dark:disabled:!text-white/50"
                                                                                     >
                                                                                         + Aggiungi partita
                                                                                     </Button>
