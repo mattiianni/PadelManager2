@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: elo-manager
+    env: node
+    buildCommand: npm run render-build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_QaHw1W3GbcON@ep-crimson-recipe-aglh7bqf-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
