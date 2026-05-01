@@ -741,7 +741,7 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                 Organizza un nuovo torneo, inserisci una giornata, sorteggia le coppie e memorizza i risultati
                             </p>
                         </div>
-                        <Button onClick={onOpenDrawLauncher} size="lg" className="w-full sm:w-auto flex-shrink-0">
+                        <Button onClick={onOpenDrawLauncher} size="lg" className="w-full flex-shrink-0 !font-bold !text-white sm:w-auto">
                             Nuovo Torneo / Nuova Giornata
                         </Button>
                     </div>

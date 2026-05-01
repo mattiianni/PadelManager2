@@ -2,7 +2,7 @@
 import React from 'react';
 import ThemeToggle from '../ui/ThemeToggle.tsx';
 import { useAuth } from '../../hooks/useAuth.tsx';
-import { APP_VERSION } from '../../constants.ts';
+import { APP_MONTH, APP_VERSION } from '../../constants.ts';
 
 interface HeaderProps {
     toggleSidebar: () => void;
@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme }) =>
                                 </h1>
                             </div>
                             <div className="grid grid-cols-1 gap-1 text-xs leading-tight text-slate-400 md:grid-cols-[auto_auto] md:items-center md:gap-3">
-                                <p>v{APP_VERSION} / Apr 2026</p>
+                                <p>v{APP_VERSION} / {APP_MONTH}</p>
                                 {workspace && (
                                     <p className="truncate text-sky-300">
                                         {workspace.name}

@@ -2,7 +2,7 @@
 
 Applicazione full-stack per la gestione di tornei di padel con ranking ELO, statistiche, PDF e isolamento dati per workspace.
 
-Versione documentata: `v4.1.1`
+Versione documentata: `v4.1.2`
 
 ## Stato attuale
 
@@ -17,10 +17,19 @@ I file `pages/_app.tsx`, `pages/_document.tsx`, `pages/index.tsx` e `next.config
 
 ## Routine release
 
-- Versione corrente: `4.1.1`
-- Dalla release successiva si incrementa la patch: `4.1.2`, `4.1.3`, ...
-- Quando cambia il mese reale, si aggiorna anche il mese visibile nei riferimenti applicativi e documentali (`Apr`, `Mag`, `Giu`, ...).
+- Versione corrente: `4.1.2`
+- Dalla release successiva si incrementa la patch: `4.1.3`, `4.1.4`, ...
+- Quando cambia il mese reale, si aggiorna anche il mese visibile nei riferimenti applicativi e documentali (`Gen`, `Feb`, `Mar`, `Apr`, `Mag`, `Giu`, ...).
 - Ad ogni release vanno aggiornati i riferimenti versione nell'app, la documentazione `.md`, il `README`, il backup `.zip` e il dump completo `.txt` del codice.
+
+## Aggiornamenti v4.1.2
+
+- Versione prodotto aggiornata a `4.1.2`.
+- Team Matchday mobile/PWA: action bar finale resa stabile, senza spostamenti laterali quando parte il salvataggio.
+- Sidebar desktop light: contrasto corretto con stato attivo piu' evidente e coerente col tema chiaro.
+- Tornei: CTA `Nuovo Torneo / Nuova Giornata` resa piu' leggibile.
+- PWA: icone e manifest riallineati agli asset PNG reali per installazione e home screen piu' coerenti.
+- Riferimenti mese release aggiornati a `Mag 2026`.
 
 ## Aggiornamenti v4.1.1
 

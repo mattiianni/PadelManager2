@@ -41,7 +41,7 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          includeAssets: ['icon.svg'],
+          includeAssets: ['icon.png'],
           manifest: {
             name: 'Padel ELO Manager',
             short_name: 'Padel ELO',
@@ -54,16 +54,16 @@ export default defineConfig(({ mode }) => {
             start_url: '/',
             icons: [
               {
-                src: '/icon.svg',
+                src: '/icon.png',
                 sizes: '192x192',
-                type: 'image/svg+xml',
-                purpose: 'any maskable'
+                type: 'image/png',
+                purpose: 'any'
               },
               {
-                src: '/icon.svg',
+                src: '/icon.png',
                 sizes: '512x512',
-                type: 'image/svg+xml',
-                purpose: 'any maskable'
+                type: 'image/png',
+                purpose: 'any'
               }
             ]
           },

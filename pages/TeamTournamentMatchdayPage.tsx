@@ -969,7 +969,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
 
                         {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
-                        <div className="flex justify-between gap-2 pt-2">
+                        <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-stretch sm:justify-between">
                             <Button
                                 variant="secondary"
                                 type="button"
@@ -978,14 +978,14 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                                     setActivePage('Tournaments');
                                 }}
                                 disabled={isSavingResults || loading}
-                                className="shrink-0 px-3"
+                                className="shrink-0 px-3 sm:self-auto self-start"
                             >
                                 <span className="sm:hidden" aria-hidden="true">
                                     <ArrowLeftIcon className="h-4 w-4" />
                                 </span>
                                 <span className="hidden sm:inline">Torna a tornei</span>
                             </Button>
-                            <div className="flex gap-2">
+                            <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
                                 <Button
                                     type="button"
                                     variant="secondary"
@@ -1015,6 +1015,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                                         });
                                     }}
                                     disabled={isSavingResults || loading}
+                                    className="w-full min-w-0 px-3"
                                 >
                                     Stampa
                                 </Button>
@@ -1022,14 +1023,16 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                                     type="button"
                                     onClick={() => handleSaveResults(false)}
                                     disabled={isSavingResults || loading || resultsLocked}
+                                    aria-label={isSavingResults ? 'Salvataggio in corso' : 'Salva'}
+                                    className="w-full min-w-0 px-3"
                                 >
-                                    {isSavingResults ? 'Salvataggio...' : 'Salva'}
+                                    Salva
                                 </Button>
                                 <Button
                                     type="button"
                                     onClick={() => handleSaveResults(true)}
                                     disabled={isSavingResults || loading || resultsLocked}
-                                    className="!border-emerald-700/50 !bg-emerald-600 hover:!bg-emerald-700 !text-white dark:!border-emerald-300/35"
+                                    className="w-full min-w-0 !border-emerald-700/50 !bg-emerald-600 px-3 hover:!bg-emerald-700 !text-white dark:!border-emerald-300/35"
                                 >
                                     Chiudi giornata
                                 </Button>

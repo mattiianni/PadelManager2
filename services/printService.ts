@@ -1,7 +1,7 @@
 import { RankingEntry, Tournament, TournamentStandingEntry, Match, Player, TournamentType, EloHistoryEntry, TeamTournamentConfig, TeamTournamentTeam, TeamTournamentSchedule, TeamTournamentMatchday, TeamTournamentPlayerEntry, TeamTournamentFixture } from '../types.ts';
 import { calculateTeamTournamentStandings, TeamTournamentStandingRow } from './teamTournamentService.ts';
 import { getTournamentDisplayName } from '../utils/tournamentLabels.ts';
-import { APP_VERSION } from '../constants.ts';
+import { APP_MONTH, APP_VERSION } from '../constants.ts';
 
 const getTournamentTypeDisplayName = (type: TournamentType): string => {
     switch (type) {
@@ -843,7 +843,7 @@ export const printRanking = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})} - Pagina 1 di 1
@@ -1512,7 +1512,7 @@ export const printTournamentReport = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})} - Pagina 1 di 1
@@ -1663,7 +1663,7 @@ export const printTeamTournamentRoundRobinSchedule = (
         <div class="separator"></div>
         ${dayBlocks}
         <div class="footer">
-            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
             <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
         </div>
         </div>
@@ -1811,7 +1811,7 @@ export const printTeamTournamentMatchdayCalendar = (
             </tbody>
         </table>
         <div class="footer">
-            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
             <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
         </div>
         </div>
@@ -2300,7 +2300,7 @@ export const printTeamTournamentMatchdayReport = (
                     ${reminderHtml}
                 </div>
                 <div class="footer">
-                    <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+                    <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
                     <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
                 </div>
             </div>
@@ -2394,7 +2394,7 @@ export const printTeamTournamentMatchdayReport = (
 	            ${standingsHtml}
 	        </div>
             <div class="footer">
-                <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+                <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
                 <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
             </div>
             </div>
@@ -2553,7 +2553,7 @@ export const printTeamTournamentReport = (
                 </div>
                 ${bracketHtml}
                 <div class="footer">
-                    <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+                    <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
                     <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
                 </div>
             </div>
@@ -3066,7 +3066,7 @@ export const printTeamTournamentReport = (
             ${isReportCompleted ? '' : daysHtml}
             ${appendedStatisticsHtml}
             <div class="footer">
-                <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+                <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
                 <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
             </div>
             </div>
@@ -3694,7 +3694,7 @@ export const printBlankScoreSheet = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})} - Pagina 1 di 1
@@ -4780,7 +4780,7 @@ export const printTournamentStatistics = (stats: any) => {
         </div>
 
         <div class="footer">
-            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026</div>
+            <div style="text-align: left; margin-bottom: 4px;">Padel ELO Manager - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}</div>
             <div style="text-align: right; font-size: 8px;">${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
         </div>
     `;
@@ -5213,7 +5213,7 @@ export const printBeatTheBoxBlank = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Beat the Box - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Beat the Box - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}
@@ -5572,7 +5572,7 @@ export const printBeatTheBoxComplete = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Beat the Box - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Beat the Box - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}
@@ -5664,7 +5664,7 @@ export const printTorneoLiberoBlank = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Torneo Libero - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Torneo Libero - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}
@@ -6108,7 +6108,7 @@ export const printTorneoLiberoComplete = (
 
         <div class="footer">
             <div style="text-align: left; margin-bottom: 4px;">
-                Padel ELO Manager - Torneo Libero - Versione ${APP_VERSION} @ Mattia Ianniello, Apr 2026
+                Padel ELO Manager - Torneo Libero - Versione ${APP_VERSION} @ Mattia Ianniello, ${APP_MONTH}
             </div>
             <div style="text-align: right; font-size: 8px;">
                 ${new Date().toLocaleDateString('it-IT')}, ${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}
