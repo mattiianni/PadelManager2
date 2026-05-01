@@ -625,7 +625,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
         // Get all active codes
         const activeCodes = await sql`
-            SELECT ac.id, ac.code_hash, ac.workspace_id, ac.is_admin, ac.failed_attempts, ac.locked_until, ac.label,
+            SELECT ac.id, ac.code_hash, ac.workspace_id, ac.is_admin, ac.failed_attempts, ac.locked_until, ac.expires_at, ac.label,
                    w.name as workspace_name, w.is_active as workspace_active
             FROM access_codes ac
             JOIN workspaces w ON ac.workspace_id = w.id
@@ -634,6 +634,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 
         // Check each code (bcrypt compare)
         let matchedCode = null;
+        let expiredMatchedCode = null;
         for (const ac of activeCodes) {
             // Check if locked
             if (ac.locked_until && new Date(ac.locked_until) > new Date()) {
@@ -641,9 +642,28 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
             }
             const isMatch = await bcrypt.compare(code, ac.code_hash);
             if (isMatch) {
+                if (ac.expires_at && new Date(ac.expires_at) <= new Date()) {
+                    expiredMatchedCode = ac;
+                    break;
+                }
                 matchedCode = ac;
                 break;
             }
+        }
+
+        if (expiredMatchedCode) {
+            await sql`
+                UPDATE access_codes
+                SET is_active = false
+                WHERE id = ${expiredMatchedCode.id}
+            `;
+
+            await sql`
+                INSERT INTO audit_logs (workspace_id, action, ip_address, user_agent, details)
+                VALUES (${expiredMatchedCode.workspace_id}, 'login_failed', ${ip}, ${req.headers['user-agent'] || ''}, ${JSON.stringify({ reason: 'code_expired', label: expiredMatchedCode.label })})
+            `;
+
+            return res.status(401).json({ message: 'Codice scaduto' });
         }
 
         if (!matchedCode) {
@@ -747,6 +767,45 @@ app.post('/api/admin/workspaces', requireAdmin, async (req, res) => {
     } catch (error) {
         logger.error('Failed to create workspace', error);
         res.status(500).json({ message: 'Errore nella creazione workspace' });
+    }
+});
+
+// DELETE /api/admin/workspaces/:id - Permanently delete a workspace and all scoped data
+app.delete('/api/admin/workspaces/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const existing = await sql`
+            SELECT id, name
+            FROM workspaces
+            WHERE id = ${id}
+        `;
+
+        if (existing.length === 0) {
+            return res.status(404).json({ message: 'Workspace non trovato' });
+        }
+
+        if (id === req.workspaceId) {
+            return res.status(400).json({ message: 'Non puoi cancellare il workspace attualmente in uso' });
+        }
+
+        const workspaceCount = await sql`SELECT COUNT(*) as count FROM workspaces`;
+        if (parseInt(workspaceCount[0].count, 10) <= 1) {
+            return res.status(400).json({ message: 'Non puoi cancellare l’ultimo workspace disponibile' });
+        }
+
+        await sql`DELETE FROM workspaces WHERE id = ${id}`;
+
+        logger.info('Workspace permanently deleted', {
+            id,
+            name: existing[0].name,
+            deletedBy: req.workspaceName
+        });
+
+        res.json({ message: 'Workspace cancellato definitivamente' });
+    } catch (error) {
+        logger.error('Failed to delete workspace', error);
+        res.status(500).json({ message: 'Errore nella cancellazione workspace' });
     }
 });
 

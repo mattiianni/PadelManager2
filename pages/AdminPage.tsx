@@ -39,25 +39,54 @@ interface AuditLog {
     workspace_name: string | null;
 }
 
+const CODE_EXPIRY_PRESETS = [
+    { value: 'none', label: 'Nessuna scadenza' },
+    { value: '8h', label: '8 ore' },
+    { value: '24h', label: '24 ore' },
+    { value: '48h', label: '48 ore' },
+    { value: '7d', label: '7 giorni' },
+] as const;
+
+type CodeExpiryPreset = typeof CODE_EXPIRY_PRESETS[number]['value'];
+
 async function adminApi<T>(url: string, options: RequestInit = {}): Promise<T> {
     const token = getAuthToken();
+    const headers: Record<string, string> = {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(options.headers as Record<string, string> || {}),
+    };
+
+    if (options.body !== undefined && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(url, {
         ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            ...(options.headers as Record<string, string> || {}),
-        },
+        headers,
     });
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({ message: 'Errore' }));
-        throw new Error(data.message || 'API request failed');
+
+    const raw = await response.text();
+    let data: any = null;
+    if (raw) {
+        try {
+            data = JSON.parse(raw);
+        } catch {
+            data = null;
+        }
     }
-    return response.json();
+
+    if (!response.ok) {
+        const fallbackMessage = raw
+            ? raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220)
+            : 'API request failed';
+        throw new Error(data?.message || fallbackMessage || 'API request failed');
+    }
+
+    return (data ?? ({} as T)) as T;
 }
 
 const AdminPage: React.FC = () => {
-    const { isAdmin } = useAuth();
+    const { isAdmin, workspace } = useAuth();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [codes, setCodes] = useState<AccessCode[]>([]);
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -73,6 +102,7 @@ const AdminPage: React.FC = () => {
     const [newCodeValue, setNewCodeValue] = useState('');
     const [newCodeLabel, setNewCodeLabel] = useState('');
     const [newCodeIsAdmin, setNewCodeIsAdmin] = useState(false);
+    const [newCodeExpiryPreset, setNewCodeExpiryPreset] = useState<CodeExpiryPreset>('none');
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
     const fetchAll = useCallback(async () => {
@@ -128,6 +158,18 @@ const AdminPage: React.FC = () => {
             alert('Inserisci un codice valido di 6 cifre');
             return;
         }
+
+        const now = new Date();
+        const expiresAt = (() => {
+            if (newCodeExpiryPreset === 'none') return null;
+            const expiryDate = new Date(now);
+            if (newCodeExpiryPreset === '8h') expiryDate.setHours(expiryDate.getHours() + 8);
+            if (newCodeExpiryPreset === '24h') expiryDate.setHours(expiryDate.getHours() + 24);
+            if (newCodeExpiryPreset === '48h') expiryDate.setHours(expiryDate.getHours() + 48);
+            if (newCodeExpiryPreset === '7d') expiryDate.setDate(expiryDate.getDate() + 7);
+            return expiryDate.toISOString();
+        })();
+
         try {
             const result = await adminApi<{ accessCode: any; code: string }>('/api/admin/codes/generate', {
                 method: 'POST',
@@ -136,12 +178,14 @@ const AdminPage: React.FC = () => {
                     code: newCodeValue,
                     label: newCodeLabel,
                     isAdmin: newCodeIsAdmin,
+                    expiresAt,
                 }),
             });
             setGeneratedCode(result.code);
             setNewCodeValue('');
             setNewCodeLabel('');
             setNewCodeIsAdmin(false);
+            setNewCodeExpiryPreset('none');
             await fetchAll();
         } catch (error: any) {
             alert(error.message);
@@ -223,10 +267,30 @@ const AdminPage: React.FC = () => {
         }
     };
 
+    const handleDeleteWorkspace = async (ws: Workspace) => {
+        const isCurrentWorkspace = workspace?.id === ws.id;
+        if (isCurrentWorkspace) {
+            alert('Non puoi cancellare il workspace attualmente in uso.');
+            return;
+        }
+
+        const confirmation = `Sei sicuro di voler cancellare definitivamente il workspace "${ws.name}"?\n\nVerranno eliminati anche:\n- ${ws.player_count} giocatori\n- ${ws.tournament_count} tornei\n- ${ws.active_codes} codici attivi\n\nTutti i codici creati per questo workspace verranno cancellati automaticamente.\n\nQuesta operazione è irreversibile.`;
+        if (!confirm(confirmation)) return;
+
+        try {
+            await adminApi(`/api/admin/workspaces/${encodeURIComponent(ws.id)}`, { method: 'DELETE' });
+            await fetchAll();
+        } catch (error: any) {
+            alert(error.message);
+        }
+    };
+
     const formatDate = (d: string | null) => {
         if (!d) return '-';
         return new Date(d).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
+
+    const isCodeExpired = (code: AccessCode) => !!code.expires_at && new Date(code.expires_at).getTime() <= Date.now();
 
     if (loading) {
         return (
@@ -305,12 +369,22 @@ const AdminPage: React.FC = () => {
                                             <td className="py-2 pr-4">{ws.active_codes}</td>
                                             <td className="py-2 pr-4">{formatDate(ws.created_at)}</td>
                                             <td className="py-2">
-                                                <button
-                                                    onClick={() => handleImpersonate(ws.id)}
-                                                    className="text-xs text-sky-500 hover:text-sky-700 dark:hover:text-sky-400 font-medium"
-                                                >
-                                                    Entra &rarr;
-                                                </button>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        onClick={() => handleImpersonate(ws.id)}
+                                                        className="text-xs text-sky-500 hover:text-sky-700 dark:hover:text-sky-400 font-medium"
+                                                    >
+                                                        Entra &rarr;
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteWorkspace(ws)}
+                                                        disabled={workspace?.id === ws.id}
+                                                        className="text-xs text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed dark:hover:text-red-400 font-medium"
+                                                        title={workspace?.id === ws.id ? 'Non puoi cancellare il workspace attualmente in uso' : 'Cancella definitivamente il workspace'}
+                                                    >
+                                                        Cancella
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -376,35 +450,64 @@ const AdminPage: React.FC = () => {
                 <div className="space-y-4">
                     <Card title="Genera Nuovo Codice">
                         <div className="space-y-3">
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <select
-                                    value={newCodeWsId}
-                                    onChange={e => setNewCodeWsId(e.target.value)}
-                                    className="flex-1 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
-                                >
-                                    {workspaces.map(ws => (
-                                        <option key={ws.id} value={ws.id}>{ws.name}</option>
-                                    ))}
-                                </select>
-                                <input
-                                    type="text"
-                                    value={newCodeValue}
-                                    onChange={e => setNewCodeValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    placeholder="Codice 6 cifre"
-                                    maxLength={6}
-                                    inputMode="numeric"
-                                    className="w-40 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white text-center font-mono text-lg tracking-wider"
-                                />
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Workspace
+                                    </label>
+                                    <select
+                                        value={newCodeWsId}
+                                        onChange={e => setNewCodeWsId(e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    >
+                                        {workspaces.map(ws => (
+                                            <option key={ws.id} value={ws.id}>{ws.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Codice
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={newCodeValue}
+                                        onChange={e => setNewCodeValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="000000"
+                                        maxLength={6}
+                                        inputMode="numeric"
+                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white text-center font-mono text-lg tracking-wider"
+                                    />
+                                </div>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-3 items-center">
+                            <div className="space-y-1">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    Nome Utilizzatore
+                                </label>
                                 <input
                                     type="text"
                                     value={newCodeLabel}
                                     onChange={e => setNewCodeLabel(e.target.value)}
-                                    placeholder="Etichetta (es. Codice Marco)"
-                                    className="flex-1 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    placeholder="Es. Marco Rossi"
+                                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
                                 />
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Scadenza
+                                    </label>
+                                    <select
+                                        value={newCodeExpiryPreset}
+                                        onChange={e => setNewCodeExpiryPreset(e.target.value as CodeExpiryPreset)}
+                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    >
+                                        {CODE_EXPIRY_PRESETS.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <label className="flex items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                     <input
                                         type="checkbox"
                                         checked={newCodeIsAdmin}
@@ -413,7 +516,11 @@ const AdminPage: React.FC = () => {
                                     />
                                     Accesso Admin
                                 </label>
-                                <Button variant="primary" onClick={handleGenerateCode}>Genera</Button>
+                            </div>
+                            <div className="flex justify-stretch sm:justify-end">
+                                <Button variant="primary" onClick={handleGenerateCode} className="w-full sm:w-auto">
+                                    Genera
+                                </Button>
                             </div>
                         </div>
                         {generatedCode && (
@@ -435,14 +542,18 @@ const AdminPage: React.FC = () => {
                                         <th className="pb-2 pr-4">Codice</th>
                                         <th className="pb-2 pr-4">Workspace</th>
                                         <th className="pb-2 pr-4">Admin</th>
+                                        <th className="pb-2 pr-4">Scade il</th>
                                         <th className="pb-2 pr-4">Stato</th>
                                         <th className="pb-2 pr-4">Ultimo uso</th>
                                         <th className="pb-2">Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-gray-900 dark:text-gray-100">
-                                    {codes.map(code => (
-                                        <tr key={code.id} className={`border-b dark:border-gray-700 ${!code.is_active ? 'opacity-50' : ''}`}>
+                                    {codes.map(code => {
+                                        const expired = isCodeExpired(code);
+                                        const visualState = !code.is_active ? 'disabled' : expired ? 'expired' : 'active';
+                                        return (
+                                        <tr key={code.id} className={`border-b dark:border-gray-700 ${visualState === 'disabled' ? 'opacity-50' : ''}`}>
                                             <td className="py-2 pr-4">{code.label || '-'}</td>
                                             <td className="py-2 pr-4 font-mono font-bold tracking-wider">
                                                 {code.code_plain ? (
@@ -479,8 +590,17 @@ const AdminPage: React.FC = () => {
                                                 {code.is_admin && <span className="text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-2 py-0.5 rounded">Admin</span>}
                                             </td>
                                             <td className="py-2 pr-4">
-                                                <span className={`text-xs px-2 py-0.5 rounded ${code.is_active ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'}`}>
-                                                    {code.is_active ? 'Attivo' : 'Disattivato'}
+                                                <span className="text-xs">{code.expires_at ? formatDate(code.expires_at) : 'Nessuna'}</span>
+                                            </td>
+                                            <td className="py-2 pr-4">
+                                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                                    visualState === 'active'
+                                                        ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                                        : visualState === 'expired'
+                                                            ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
+                                                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                                }`}>
+                                                    {visualState === 'active' ? 'Attivo' : visualState === 'expired' ? 'Scaduto' : 'Disattivato'}
                                                 </span>
                                             </td>
                                             <td className="py-2 pr-4 text-xs">{formatDate(code.last_used_at)}</td>
@@ -511,7 +631,7 @@ const AdminPage: React.FC = () => {
                                                 )}
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
                         </div>
