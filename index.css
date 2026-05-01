@@ -137,6 +137,45 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 45%);
   }
 
+  /* Reusable "row card" style used for Top5 and other inner list rows. */
+  .stitch-row {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(241, 245, 251, 0.55) 42%, rgba(255, 255, 255, 0.14));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.25),
+      0 10px 24px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .dark .stitch-row {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03) 45%, rgba(0, 0, 0, 0.10));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 12px 28px rgba(2, 6, 23, 0.22);
+  }
+
+  .stitch-row-hover {
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .stitch-row-hover:hover {
+    border-color: rgba(137, 206, 255, 0.35);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.28),
+      0 16px 34px rgba(137, 206, 255, 0.12);
+  }
+
+  .dark .stitch-row-hover:hover {
+    border-color: rgba(137, 206, 255, 0.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 18px 40px rgba(14, 165, 233, 0.10);
+  }
+
   .app-grid {
     position: relative;
   }

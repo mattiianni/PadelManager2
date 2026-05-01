@@ -9,6 +9,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { randomUUID } from 'crypto';
 
 // Auth configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'padel-elo-manager-dev-secret-change-in-production';
@@ -731,6 +732,371 @@ function requireAdmin(req, res, next) {
     }
     next();
 }
+
+// GET /api/admin/workspaces/:workspaceId/tournaments - List selectable tournaments for a workspace
+app.get('/api/admin/workspaces/:workspaceId/tournaments', requireAdmin, async (req, res) => {
+    try {
+        const { workspaceId } = req.params;
+        if (!workspaceId) return res.status(400).json({ message: 'workspaceId richiesto' });
+
+        const ws = await sql`SELECT id, is_active FROM workspaces WHERE id = ${workspaceId} LIMIT 1`;
+        if (ws.length === 0) return res.status(404).json({ message: 'Workspace non trovato' });
+
+        const tournaments = await sql`
+            SELECT id, name, type, date, club, status, giornata_name, team_tournament_root_id
+            FROM tournaments
+            WHERE workspace_id = ${workspaceId}
+              AND (
+                type <> ${'Torneo a Squadre'}
+                OR (
+                    type = ${'Torneo a Squadre'}
+                    AND COALESCE(team_tournament_root_id, id) = id
+                    AND (giornata_name IS NULL OR BTRIM(giornata_name) = '')
+                )
+              )
+            ORDER BY date DESC, id DESC
+        `;
+
+        res.json({
+            tournaments: tournaments.map(t => ({
+                id: t.id,
+                name: t.name,
+                type: t.type,
+                date: t.date,
+                club: t.club,
+                status: t.status,
+            }))
+        });
+    } catch (error) {
+        logger.error('Failed to list workspace tournaments', error);
+        res.status(500).json({ message: 'Errore nel recupero tornei workspace' });
+    }
+});
+
+// POST /api/admin/transfer/tournament - Copy a tournament dataset between workspaces
+app.post('/api/admin/transfer/tournament', requireAdmin, async (req, res) => {
+    const txId = randomUUID();
+    try {
+        const { sourceWorkspaceId, destinationWorkspaceId, tournamentId } = req.body || {};
+        if (!sourceWorkspaceId || !destinationWorkspaceId || !tournamentId) {
+            return res.status(400).json({ message: 'sourceWorkspaceId, destinationWorkspaceId e tournamentId richiesti' });
+        }
+        if (sourceWorkspaceId === destinationWorkspaceId) {
+            return res.status(400).json({ message: 'Workspace sorgente e destinatario devono essere diversi' });
+        }
+
+        const [srcWs, dstWs] = await Promise.all([
+            sql`SELECT id, name, is_active FROM workspaces WHERE id = ${sourceWorkspaceId} LIMIT 1`,
+            sql`SELECT id, name, is_active FROM workspaces WHERE id = ${destinationWorkspaceId} LIMIT 1`,
+        ]);
+        if (srcWs.length === 0) return res.status(404).json({ message: 'Workspace sorgente non trovato' });
+        if (dstWs.length === 0) return res.status(404).json({ message: 'Workspace destinatario non trovato' });
+        if (!srcWs[0].is_active) return res.status(400).json({ message: 'Workspace sorgente non attivo' });
+        if (!dstWs[0].is_active) return res.status(400).json({ message: 'Workspace destinatario non attivo' });
+
+        const tRows = await sql`
+            SELECT id, name, type, date, club, status, americano_fields, americano_scoring_type, final_standings,
+                   giornata_name, num_gironi, team_tournament_root_id
+            FROM tournaments
+            WHERE id = ${tournamentId}
+              AND workspace_id = ${sourceWorkspaceId}
+            LIMIT 1
+        `;
+        if (tRows.length === 0) return res.status(404).json({ message: 'Torneo non trovato nel workspace sorgente' });
+
+        const selectedTournament = tRows[0];
+        const sourceRootId = selectedTournament.type === 'Torneo a Squadre'
+            ? (selectedTournament.team_tournament_root_id || selectedTournament.id)
+            : null;
+        const isTeamTournament = selectedTournament.type === 'Torneo a Squadre';
+
+        // Determine which tournaments to copy.
+        const tournamentsToCopy = isTeamTournament
+            ? await sql`
+                SELECT id, name, type, date, club, status, americano_fields, americano_scoring_type, final_standings,
+                       giornata_name, num_gironi, team_tournament_root_id
+                FROM tournaments
+                WHERE workspace_id = ${sourceWorkspaceId}
+                  AND (id = ${sourceRootId} OR team_tournament_root_id = ${sourceRootId})
+                ORDER BY date ASC, id ASC
+            `
+            : [selectedTournament];
+
+        const oldTournamentIds = tournamentsToCopy.map(t => t.id);
+
+        // Fetch matches only for classic tournaments.
+        const oldMatches = isTeamTournament
+            ? []
+            : await sql`
+                SELECT id, date, team1_p1_id, team1_p2_id, team2_p1_id, team2_p2_id, sets, winner, tournament_id, created_at
+                FROM matches
+                WHERE workspace_id = ${sourceWorkspaceId}
+                  AND tournament_id = ANY(${oldTournamentIds}::uuid[])
+                ORDER BY created_at ASC, date ASC
+            `;
+
+        const oldMatchIds = oldMatches.map(m => m.id);
+
+        const playerIdSet = new Set();
+        for (const m of oldMatches) {
+            for (const pid of [m.team1_p1_id, m.team1_p2_id, m.team2_p1_id, m.team2_p2_id]) {
+                if (pid) playerIdSet.add(String(pid));
+            }
+        }
+        const oldPlayerIds = Array.from(playerIdSet);
+
+        const oldPlayers = oldPlayerIds.length > 0
+            ? await sql`
+                SELECT id, name, surname, position, initial_elo, current_elo
+                FROM players
+                WHERE workspace_id = ${sourceWorkspaceId}
+                  AND id = ANY(${oldPlayerIds}::uuid[])
+            `
+            : [];
+
+        const oldEloHistory = (!isTeamTournament && (oldTournamentIds.length > 0 || oldMatchIds.length > 0) && oldPlayerIds.length > 0)
+            ? await sql`
+                SELECT event_id, player_id, elo_before, elo_after, delta, date, type
+                FROM elo_history
+                WHERE workspace_id = ${sourceWorkspaceId}
+                  AND player_id = ANY(${oldPlayerIds}::uuid[])
+                  AND event_id = ANY(${[...oldTournamentIds, ...oldMatchIds]}::uuid[])
+                ORDER BY date ASC
+            `
+            : [];
+
+        // Team tournament scoped tables
+        const [oldTeamConfigRows, oldTeamRows, oldMatchdays, oldMatchdayMatches, oldFixtures] = isTeamTournament
+            ? await Promise.all([
+                sql`SELECT * FROM team_tournament_configs WHERE tournament_id = ${sourceRootId} LIMIT 1`,
+                sql`SELECT * FROM team_tournament_teams WHERE tournament_id = ${sourceRootId} ORDER BY team_number ASC`,
+                sql`SELECT * FROM team_tournament_matchdays WHERE root_tournament_id = ${sourceRootId} ORDER BY created_at ASC`,
+                sql`
+                    SELECT m.*
+                    FROM team_tournament_matchday_matches m
+                    JOIN team_tournament_matchdays d ON d.id = m.matchday_id
+                    WHERE d.root_tournament_id = ${sourceRootId}
+                    ORDER BY d.created_at ASC, m.match_index ASC
+                `,
+                sql`SELECT * FROM team_tournament_fixtures WHERE root_tournament_id = ${sourceRootId} ORDER BY phase ASC, slot ASC`,
+            ])
+            : [[], [], [], [], []];
+
+        // Build ID maps
+        const tournamentIdMap = new Map();
+        const playerIdMap = new Map();
+        const matchIdMap = new Map();
+        const matchdayIdMap = new Map();
+
+        const newRootTournamentId = isTeamTournament ? randomUUID() : null;
+
+        for (const t of tournamentsToCopy) {
+            const newId = (isTeamTournament && String(t.id) === String(sourceRootId))
+                ? newRootTournamentId
+                : randomUUID();
+            tournamentIdMap.set(String(t.id), newId);
+        }
+        for (const p of oldPlayers) playerIdMap.set(String(p.id), randomUUID());
+        for (const m of oldMatches) matchIdMap.set(String(m.id), randomUUID());
+        for (const md of oldMatchdays) matchdayIdMap.set(String(md.id), randomUUID());
+
+        // Start transaction
+        await sql`BEGIN`;
+
+        // Copy tournaments
+        for (const t of tournamentsToCopy) {
+            const newId = tournamentIdMap.get(String(t.id));
+            const newTeamRootId = isTeamTournament ? newRootTournamentId : null;
+
+            await sql`
+                INSERT INTO tournaments (
+                    id, name, type, date, club, status,
+                    americano_fields, americano_scoring_type, final_standings,
+                    giornata_name, num_gironi, team_tournament_root_id,
+                    workspace_id
+                )
+                VALUES (
+                    ${newId}, ${t.name}, ${t.type}, ${t.date}, ${t.club}, ${t.status},
+                    ${t.americano_fields ?? null}, ${t.americano_scoring_type ?? null}, ${t.final_standings ?? null},
+                    ${t.giornata_name ?? null}, ${t.num_gironi ?? null},
+                    ${newTeamRootId},
+                    ${destinationWorkspaceId}
+                )
+            `;
+        }
+
+        // Copy players (classic tournaments)
+        for (const p of oldPlayers) {
+            const newId = playerIdMap.get(String(p.id));
+            await sql`
+                INSERT INTO players (id, name, surname, position, initial_elo, current_elo, workspace_id)
+                VALUES (${newId}, ${p.name}, ${p.surname}, ${p.position}, ${p.initial_elo}, ${p.current_elo}, ${destinationWorkspaceId})
+            `;
+        }
+
+        // Copy matches (classic tournaments)
+        for (const m of oldMatches) {
+            const newId = matchIdMap.get(String(m.id));
+            const newTournamentId = tournamentIdMap.get(String(m.tournament_id));
+            const mapPid = (pid) => (pid ? playerIdMap.get(String(pid)) : null);
+            await sql`
+                INSERT INTO matches (
+                    id, date, team1_p1_id, team1_p2_id, team2_p1_id, team2_p2_id,
+                    sets, winner, tournament_id, workspace_id, created_at
+                )
+                VALUES (
+                    ${newId}, ${m.date},
+                    ${mapPid(m.team1_p1_id)}, ${mapPid(m.team1_p2_id)}, ${mapPid(m.team2_p1_id)}, ${mapPid(m.team2_p2_id)},
+                    ${m.sets}, ${m.winner ?? null}, ${newTournamentId}, ${destinationWorkspaceId}, ${m.created_at ?? m.date}
+                )
+            `;
+        }
+
+        // Copy elo history (classic tournaments)
+        for (const h of oldEloHistory) {
+            const newPlayerId = playerIdMap.get(String(h.player_id));
+            const eventIdKey = String(h.event_id);
+            const newEventId = tournamentIdMap.get(eventIdKey) || matchIdMap.get(eventIdKey);
+            if (!newPlayerId || !newEventId) continue;
+            await sql`
+                INSERT INTO elo_history (event_id, player_id, elo_before, elo_after, delta, date, type, workspace_id)
+                VALUES (${newEventId}, ${newPlayerId}, ${h.elo_before}, ${h.elo_after}, ${h.delta}, ${h.date}, ${h.type}, ${destinationWorkspaceId})
+            `;
+        }
+
+        // Copy team tournament tables (team tournaments only)
+        if (isTeamTournament) {
+            const newRootId = newRootTournamentId;
+
+            if (oldTeamConfigRows.length > 0) {
+                const c = oldTeamConfigRows[0];
+                await sql`
+                    INSERT INTO team_tournament_configs (
+                        tournament_id, initial_team_count, default_players_per_team, format, matches_per_day,
+                        round_robin_final_phase, scoring_type, config_completed, schedule_json, created_at, updated_at
+                    )
+                    VALUES (
+                        ${newRootId}, ${c.initial_team_count}, ${c.default_players_per_team}, ${c.format}, ${c.matches_per_day},
+                        ${c.round_robin_final_phase ?? null}, ${c.scoring_type ?? 'Punti'}, ${c.config_completed},
+                        ${c.schedule_json ? JSON.stringify(c.schedule_json) : null}::jsonb,
+                        NOW(), NOW()
+                    )
+                `;
+            }
+
+            for (const tt of oldTeamRows) {
+                await sql`
+                    INSERT INTO team_tournament_teams (
+                        tournament_id, team_number, name, target_player_count, players, is_seeded, created_at, updated_at
+                    )
+                    VALUES (
+                        ${newRootId}, ${tt.team_number}, ${tt.name}, ${tt.target_player_count},
+                        ${JSON.stringify(Array.isArray(tt.players) ? tt.players : [])}::jsonb,
+                        ${tt.is_seeded ?? false}, NOW(), NOW()
+                    )
+                `;
+            }
+
+            for (const md of oldMatchdays) {
+                const newMdId = matchdayIdMap.get(String(md.id));
+                const newTournamentDayId = tournamentIdMap.get(String(md.tournament_day_id));
+                await sql`
+                    INSERT INTO team_tournament_matchdays (
+                        id, root_tournament_id, tournament_day_id, date,
+                        team1_number, team2_number, round_number, phase, matches_per_day, status, summary_json,
+                        created_at, updated_at
+                    )
+                    VALUES (
+                        ${newMdId}, ${newRootId}, ${newTournamentDayId}, ${md.date},
+                        ${md.team1_number}, ${md.team2_number}, ${md.round_number ?? null}, ${md.phase ?? 'round_robin'},
+                        ${md.matches_per_day}, ${md.status ?? 'scheduled'}, ${md.summary_json ? JSON.stringify(md.summary_json) : null}::jsonb,
+                        NOW(), NOW()
+                    )
+                `;
+            }
+
+            for (const mm of oldMatchdayMatches) {
+                const newMatchdayId = matchdayIdMap.get(String(mm.matchday_id));
+                await sql`
+                    INSERT INTO team_tournament_matchday_matches (
+                        matchday_id, match_index, team1_players, team2_players, sets, winner, cancelled, created_at, updated_at
+                    )
+                    VALUES (
+                        ${newMatchdayId}, ${mm.match_index},
+                        ${JSON.stringify(Array.isArray(mm.team1_players) ? mm.team1_players : [])}::jsonb,
+                        ${JSON.stringify(Array.isArray(mm.team2_players) ? mm.team2_players : [])}::jsonb,
+                        ${mm.sets ? JSON.stringify(mm.sets) : null}::jsonb, ${mm.winner ?? null}, ${mm.cancelled ?? false},
+                        NOW(), NOW()
+                    )
+                `;
+            }
+
+            for (const f of oldFixtures) {
+                const newTournamentDayId = f.tournament_day_id ? tournamentIdMap.get(String(f.tournament_day_id)) : null;
+                const newMatchdayId = f.matchday_id ? matchdayIdMap.get(String(f.matchday_id)) : null;
+                await sql`
+                    INSERT INTO team_tournament_fixtures (
+                        root_tournament_id, phase, slot, team1_number, team2_number, winner_team_number, loser_team_number, is_bye,
+                        depends_on, status, tournament_day_id, matchday_id, created_at, updated_at
+                    )
+                    VALUES (
+                        ${newRootId}, ${f.phase}, ${f.slot}, ${f.team1_number ?? null}, ${f.team2_number ?? null},
+                        ${f.winner_team_number ?? null}, ${f.loser_team_number ?? null}, ${f.is_bye ?? false},
+                        ${f.depends_on ? JSON.stringify(f.depends_on) : null}::jsonb, ${f.status ?? 'planned'}, ${newTournamentDayId}, ${newMatchdayId},
+                        NOW(), NOW()
+                    )
+                `;
+            }
+        }
+
+        await sql`
+            INSERT INTO audit_logs (workspace_id, action, ip_address, user_agent, details)
+            VALUES (
+                ${destinationWorkspaceId},
+                ${'tournament_transfer'},
+                ${req.ip || null},
+                ${req.headers['user-agent'] || ''},
+                ${JSON.stringify({
+                    txId,
+                    sourceWorkspaceId,
+                    destinationWorkspaceId,
+                    sourceTournamentId: tournamentId,
+                    copiedTournaments: tournamentsToCopy.length,
+                    copiedPlayers: oldPlayers.length,
+                    copiedMatches: oldMatches.length,
+                    copiedEloHistory: oldEloHistory.length,
+                    isTeamTournament
+                })}
+            )
+        `;
+
+        await sql`COMMIT`;
+
+        res.json({
+            message: 'Invio completato',
+            txId,
+            isTeamTournament,
+            source: { id: sourceWorkspaceId, name: srcWs[0].name },
+            destination: { id: destinationWorkspaceId, name: dstWs[0].name },
+            counts: {
+                tournaments: tournamentsToCopy.length,
+                players: oldPlayers.length,
+                matches: oldMatches.length,
+                eloHistory: oldEloHistory.length,
+                teamConfigs: isTeamTournament ? (oldTeamConfigRows.length) : 0,
+                teamTeams: isTeamTournament ? (oldTeamRows.length) : 0,
+                teamMatchdays: isTeamTournament ? (oldMatchdays.length) : 0,
+                teamMatchdayMatches: isTeamTournament ? (oldMatchdayMatches.length) : 0,
+                teamFixtures: isTeamTournament ? (oldFixtures.length) : 0,
+            },
+            newRootTournamentId: isTeamTournament ? newRootTournamentId : tournamentIdMap.get(String(tournamentId)),
+        });
+    } catch (error) {
+        try { await sql`ROLLBACK`; } catch {}
+        logger.error('Failed to transfer tournament', { txId, error });
+        res.status(500).json({ message: 'Errore durante invio dati torneo', error: error?.message || String(error) });
+    }
+});
 
 // GET /api/admin/workspaces - List all workspaces
 app.get('/api/admin/workspaces', requireAdmin, async (req, res) => {

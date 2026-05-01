@@ -39,6 +39,15 @@ interface AuditLog {
     workspace_name: string | null;
 }
 
+interface TransferTournament {
+    id: string;
+    name: string;
+    type: string;
+    date: string;
+    club: string;
+    status: string;
+}
+
 const CODE_EXPIRY_PRESETS = [
     { value: 'none', label: 'Nessuna scadenza' },
     { value: '8h', label: '8 ore' },
@@ -90,7 +99,7 @@ const AdminPage: React.FC = () => {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [codes, setCodes] = useState<AccessCode[]>([]);
     const [logs, setLogs] = useState<AuditLog[]>([]);
-    const [activeTab, setActiveTab] = useState<'workspaces' | 'codes' | 'logs'>('workspaces');
+    const [activeTab, setActiveTab] = useState<'workspaces' | 'codes' | 'transfer' | 'logs'>('workspaces');
     const [loading, setLoading] = useState(true);
 
     // New workspace form
@@ -105,6 +114,14 @@ const AdminPage: React.FC = () => {
     const [newCodeExpiryPreset, setNewCodeExpiryPreset] = useState<CodeExpiryPreset>('none');
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
 
+    // Transfer form
+    const [transferSourceWsId, setTransferSourceWsId] = useState('');
+    const [transferDestinationWsId, setTransferDestinationWsId] = useState('');
+    const [transferTournaments, setTransferTournaments] = useState<TransferTournament[]>([]);
+    const [transferTournamentId, setTransferTournamentId] = useState('');
+    const [transferBusy, setTransferBusy] = useState(false);
+    const [transferResult, setTransferResult] = useState<any>(null);
+
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
@@ -118,6 +135,14 @@ const AdminPage: React.FC = () => {
             setLogs(logsData.logs);
             if (wsData.workspaces.length > 0 && !newCodeWsId) {
                 setNewCodeWsId(wsData.workspaces[0].id);
+            }
+            if (wsData.workspaces.length > 0 && !transferSourceWsId) {
+                setTransferSourceWsId(wsData.workspaces[0].id);
+            }
+            if (wsData.workspaces.length > 1 && !transferDestinationWsId) {
+                setTransferDestinationWsId(wsData.workspaces[1].id);
+            } else if (wsData.workspaces.length === 1 && !transferDestinationWsId) {
+                setTransferDestinationWsId('');
             }
         } catch (error) {
             console.error('Failed to fetch admin data:', error);
@@ -292,6 +317,80 @@ const AdminPage: React.FC = () => {
 
     const isCodeExpired = (code: AccessCode) => !!code.expires_at && new Date(code.expires_at).getTime() <= Date.now();
 
+    const fetchTransferTournaments = useCallback(async (wsId: string) => {
+        if (!wsId) {
+            setTransferTournaments([]);
+            setTransferTournamentId('');
+            return;
+        }
+        try {
+            const data = await adminApi<{ tournaments: TransferTournament[] }>(`/api/admin/workspaces/${encodeURIComponent(wsId)}/tournaments`);
+            setTransferTournaments(data.tournaments || []);
+            if (data.tournaments?.length) {
+                setTransferTournamentId(prev => prev || data.tournaments[0].id);
+            } else {
+                setTransferTournamentId('');
+            }
+        } catch (error) {
+            console.error('Failed to fetch transfer tournaments:', error);
+            setTransferTournaments([]);
+            setTransferTournamentId('');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        if (!transferSourceWsId) return;
+        fetchTransferTournaments(transferSourceWsId);
+    }, [isAdmin, transferSourceWsId, fetchTransferTournaments]);
+
+    useEffect(() => {
+        if (!transferSourceWsId) return;
+        if (transferDestinationWsId && transferDestinationWsId === transferSourceWsId) {
+            const next = workspaces.find(w => w.id !== transferSourceWsId)?.id || '';
+            setTransferDestinationWsId(next);
+        }
+    }, [transferSourceWsId, transferDestinationWsId, workspaces]);
+
+    const handleTransferTournament = async () => {
+        if (!transferSourceWsId || !transferDestinationWsId || !transferTournamentId) return;
+        const src = workspaces.find(w => w.id === transferSourceWsId);
+        const dst = workspaces.find(w => w.id === transferDestinationWsId);
+        const t = transferTournaments.find(tt => tt.id === transferTournamentId);
+        if (!src || !dst || !t) return;
+
+        const confirmText =
+            `Inviare i dati di questo torneo?\n\n` +
+            `Torneo: ${t.name}\n` +
+            `Sorgente: ${src.name}\n` +
+            `Destinatario: ${dst.name}\n\n` +
+            `Verranno duplicati (senza merge):\n` +
+            `- torneo e dati collegati\n` +
+            `- match/risultati (se presenti)\n` +
+            `- giocatori coinvolti (se presenti)\n` +
+            `- ELO (solo per i dati copiati)\n\n` +
+            `Dopo l'invio i dati saranno indipendenti nei due workspace.`;
+        if (!confirm(confirmText)) return;
+
+        setTransferBusy(true);
+        setTransferResult(null);
+        try {
+            const result = await adminApi<any>('/api/admin/transfer/tournament', {
+                method: 'POST',
+                body: JSON.stringify({
+                    sourceWorkspaceId: transferSourceWsId,
+                    destinationWorkspaceId: transferDestinationWsId,
+                    tournamentId: transferTournamentId,
+                }),
+            });
+            setTransferResult(result);
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setTransferBusy(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="space-y-4">
@@ -307,7 +406,7 @@ const AdminPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
-                {(['workspaces', 'codes', 'logs'] as const).map(tab => (
+                {(['workspaces', 'codes', 'transfer', 'logs'] as const).map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -317,7 +416,7 @@ const AdminPage: React.FC = () => {
                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                     >
-                        {tab === 'workspaces' ? 'Workspace' : tab === 'codes' ? 'Codici Accesso' : 'Audit Log'}
+                        {tab === 'workspaces' ? 'Workspace' : tab === 'codes' ? 'Codici Accesso' : tab === 'transfer' ? 'Invia dati' : 'Audit Log'}
                     </button>
                 ))}
             </div>
@@ -635,6 +734,98 @@ const AdminPage: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
+                    </Card>
+                </div>
+            )}
+
+            {/* Transfer Tab */}
+            {activeTab === 'transfer' && (
+                <div className="space-y-4">
+                    <Card title="Invia Dati Torneo">
+                        <div className="space-y-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Workspace sorgente
+                                    </label>
+                                    <select
+                                        value={transferSourceWsId}
+                                        onChange={e => { setTransferSourceWsId(e.target.value); setTransferResult(null); }}
+                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    >
+                                        {workspaces.map(ws => (
+                                            <option key={ws.id} value={ws.id}>{ws.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Workspace destinatario
+                                    </label>
+                                    <select
+                                        value={transferDestinationWsId}
+                                        onChange={e => { setTransferDestinationWsId(e.target.value); setTransferResult(null); }}
+                                        className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                    >
+                                        <option value="">Seleziona...</option>
+                                        {workspaces.filter(ws => ws.id !== transferSourceWsId).map(ws => (
+                                            <option key={ws.id} value={ws.id}>{ws.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                    Torneo
+                                </label>
+                                <select
+                                    value={transferTournamentId}
+                                    onChange={e => { setTransferTournamentId(e.target.value); setTransferResult(null); }}
+                                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 text-gray-900 dark:text-white"
+                                >
+                                    {transferTournaments.length === 0 && (
+                                        <option value="">Nessun torneo disponibile</option>
+                                    )}
+                                    {transferTournaments.map(t => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.name} • {new Date(t.date).toLocaleDateString('it-IT')} • {t.type}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Nota: per “Torneo a Squadre” vengono mostrati solo i tornei root (il trasferimento include automaticamente tutte le giornate collegate).
+                                </p>
+                            </div>
+
+                            <div className="flex justify-stretch sm:justify-end">
+                                <Button
+                                    variant="primary"
+                                    onClick={handleTransferTournament}
+                                    disabled={transferBusy || !transferSourceWsId || !transferDestinationWsId || !transferTournamentId}
+                                    className="w-full sm:w-auto"
+                                >
+                                    {transferBusy ? 'Invio in corso…' : 'Invia'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {transferResult && (
+                            <div className="mt-3 p-3 border rounded-lg bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800">
+                                <p className="text-sky-900 dark:text-sky-100 font-medium">
+                                    {transferResult.message || 'Invio completato'}
+                                </p>
+                                {transferResult.counts && (
+                                    <p className="text-sky-700 dark:text-sky-200 text-sm mt-1">
+                                        Copiati: {transferResult.counts.tournaments} tornei, {transferResult.counts.players} giocatori, {transferResult.counts.matches} match, {transferResult.counts.eloHistory} record ELO.
+                                        {transferResult.isTeamTournament ? ` (Team: ${transferResult.counts.teamTeams} squadre, ${transferResult.counts.teamMatchdays} giornate, ${transferResult.counts.teamMatchdayMatches} submatch.)` : ''}
+                                    </p>
+                                )}
+                                {transferResult.txId && (
+                                    <p className="text-xs text-sky-600 dark:text-sky-300 mt-1 font-mono">TX: {transferResult.txId}</p>
+                                )}
+                            </div>
+                        )}
                     </Card>
                 </div>
             )}

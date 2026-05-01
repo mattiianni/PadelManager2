@@ -2,6 +2,12 @@
 
 Questo file consolida gli storici precedentemente salvati come `UPDATE_SUMMARY_*.md`.
 
+## v4.1.4 — 2026-05-01
+
+- Admin: tab `Invia dati` + API per copiare un torneo tra workspace (dati indipendenti).
+- UI Stitch: classe `.stitch-row` riutilizzabile applicata a righe interne (Top 5) e alle card giornate in `Tornei`.
+- Statistiche: pill `Dati parziali` con contrasto corretto anche in dark.
+
 ## v4.1.3 — 2026-05-01
 
 - Admin: cancellazione workspace con conferma e guardrail (non attuale, non ultimo).

@@ -1056,7 +1056,7 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                 (normalTournamentTotalDays > 1 && normalTournamentDayOrder.has(day.id)) ||
                                                 day.status === 'scheduled';
                                             return (
-                                            <div key={day.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-slate-200/80 dark:border-slate-700/80 shadow-[0_10px_24px_rgba(15,23,42,0.09)] dark:shadow-[0_12px_28px_rgba(2,6,23,0.26)] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                            <div key={day.id} className="stitch-row p-4 rounded-lg flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                                 <div className="min-w-0 flex-1">
                                                     <div className="min-w-0">
                                                         {day.type === TournamentType.TorneoASquadre && day.giornataName ? (

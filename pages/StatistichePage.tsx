@@ -1326,7 +1326,7 @@ const StatistichePage: React.FC = () => {
                                         <span className="flex items-center gap-1"><PrintIcon /> Stampa riepilogo</span>
                                     </Button>
                                     {isPartial && (
-                                        <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/25 dark:bg-amber-500/12 dark:text-amber-200">
+                                        <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/20 dark:bg-amber-200/90 dark:text-amber-950">
                                             Dati parziali
                                         </span>
                                     )}
@@ -1545,7 +1545,7 @@ const StatistichePage: React.FC = () => {
                                             <span className="flex items-center gap-1"><PrintIcon /> Stampa Riepilogo</span>
                                         </Button>
                                         {stats.isPartial && (
-                                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/25 dark:bg-amber-500/12 dark:text-amber-200">
+                                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/20 dark:bg-amber-200/90 dark:text-amber-950">
                                                 Dati parziali
                                             </span>
                                         )}

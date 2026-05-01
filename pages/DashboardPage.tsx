@@ -219,7 +219,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateToResults }) =>
                     ) : (
                         <div className="space-y-3">
                             {top5.map((p, i) => (
-                                <div key={p.id} className="flex items-center justify-between rounded-2xl border border-slate-200/55 bg-slate-50/70 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] dark:border-white/5 dark:bg-white/[0.03]">
+                                <div key={p.id} className="stitch-row flex items-center justify-between rounded-2xl px-3 py-3">
                                     <div className="flex items-center gap-3">
                                         <span className="text-lg font-bold text-gray-400 dark:text-gray-500 w-6 text-right">{i + 1}.</span>
                                         <span className="font-semibold text-gray-900 dark:text-white">
