@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Card from '../components/ui/Card.tsx';
 import Button from '../components/ui/Button.tsx';
 import { ChevronDownIcon, PrintIcon } from '../components/ui/Icons.tsx';
@@ -8,6 +8,7 @@ import { printTeamTournamentReport, printTeamTournamentStatistics, printTourname
 
 interface TournamentStats {
     tournament: Tournament;
+    isPartial: boolean;
     giornate: string[];
     numeroGiornate: number;
     totalePartite: number;
@@ -58,11 +59,18 @@ const clonePlayer = (player: Player): Player => {
     return JSON.parse(JSON.stringify(player));
 };
 
+const classicMatchHasResult = (match: Match): boolean =>
+    match.winner !== null || match.sets.some(set => Number(set.team1 || 0) !== 0 || Number(set.team2 || 0) !== 0);
+
+const teamSubMatchHasResult = (sets: Match['sets'] | null | undefined): boolean =>
+    Array.isArray(sets) && sets.some(set => Number(set.team1 || 0) !== 0 || Number(set.team2 || 0) !== 0);
+
 const StatistichePage: React.FC = () => {
     const { tournaments, matches, players, getPlayerById, eloHistory, getTeamTournamentPlayerStats, getTeamTournamentConfig, getTeamTournamentMatchdays, getTeamTournamentTeams } = usePadelStore();
     const [expandedTournament, setExpandedTournament] = useState<string | null>(null);
     // Unified dropdown key: '' | `series:${seriesKey}` | `tt:${rootId}`
     const [selectedTournamentKey, setSelectedTournamentKey] = useState<string>('');
+    const shouldAutoExpandOnNextSelectionRef = useRef(false);
     const [teamTournamentPlayerStatsByRoot, setTeamTournamentPlayerStatsByRoot] = useState<Record<string, TeamTournamentPlayerStatsRow[]>>({});
     const [teamTournamentConfigByRoot, setTeamTournamentConfigByRoot] = useState<Record<string, any>>({});
     const [teamTournamentTeamsByRoot, setTeamTournamentTeamsByRoot] = useState<Record<string, TeamTournamentTeam[]>>({});
@@ -72,26 +80,35 @@ const StatistichePage: React.FC = () => {
     const selectedTeamTournamentRootId = selectedTournamentKey.startsWith('tt:') ? selectedTournamentKey.slice(3) : null;
     const selectedSeriesKey = selectedTournamentKey.startsWith('series:') ? selectedTournamentKey.slice(7) : null;
 
-    // Get completed tournaments for filter dropdown
+    const classicTournamentIdsWithResults = useMemo(() => {
+        const ids = new Set<string>();
+        matches.forEach(match => {
+            if (match.tournamentId && classicMatchHasResult(match)) {
+                ids.add(match.tournamentId);
+            }
+        });
+        return ids;
+    }, [matches]);
+
+    // Get classic tournaments with at least one completed match for filter dropdown
     const completedTournaments = useMemo(() => {
-        // Keep existing statistics flow unchanged for the classic formats:
-        // Team Tournaments have their own dedicated draft section (separate optgroup).
-        const completed = tournaments
-            .filter(t => t.status === 'completed')
-            .filter(t => t.type !== TournamentType.TorneoASquadre);
+        const eligible = tournaments
+            .filter(t => t.type !== TournamentType.TorneoASquadre)
+            .filter(t => classicTournamentIdsWithResults.has(t.id));
         const groupedByName = new Map<string, Tournament>();
-        
-        completed.forEach(t => {
+
+        eligible.forEach(t => {
             const seriesKey = (t.giornataName || t.name);
-            if (!groupedByName.has(seriesKey)) {
+            const existing = groupedByName.get(seriesKey);
+            if (!existing || new Date(t.date).getTime() >= new Date(existing.date).getTime()) {
                 groupedByName.set(seriesKey, { ...t });
             }
         });
-        
-        return Array.from(groupedByName.values()).sort((a, b) => 
+
+        return Array.from(groupedByName.values()).sort((a, b) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
         );
-    }, [tournaments]);
+    }, [tournaments, classicTournamentIdsWithResults]);
 
     const teamTournamentRoots = useMemo(() => {
         // Root = no giornataName, Torneo a Squadre
@@ -124,37 +141,74 @@ const StatistichePage: React.FC = () => {
 
     // Raggruppa tornei per SERIE (seriesKey = giornataName || name)
     const activeTournaments = useMemo(() => {
-        const completed = tournaments
-            .filter(t => t.status === 'completed')
-            .filter(t => t.type !== TournamentType.TorneoASquadre);
-        
+        const available = tournaments
+            .filter(t => t.type !== TournamentType.TorneoASquadre)
+            .filter(t => classicTournamentIdsWithResults.has(t.id));
+
         // Filter by selected classic series if specified
-        const filteredCompleted = selectedSeriesKey
-            ? completed.filter(t => (t.giornataName || t.name) === selectedSeriesKey)
-            : completed;
-        
+        const filteredAvailable = selectedSeriesKey
+            ? available.filter(t => (t.giornataName || t.name) === selectedSeriesKey)
+            : available;
+
         // Group by series key
         const groupedByName = new Map<string, Tournament>();
-        filteredCompleted.forEach(t => {
+        filteredAvailable.forEach(t => {
             const seriesKey = (t.giornataName || t.name);
-            if (!groupedByName.has(seriesKey)) {
-                groupedByName.set(seriesKey, { ...t });
-            } else {
-                // Merge matchIds from same tournament name by creating a new object
-                const existing = groupedByName.get(seriesKey)!;
+            const existing = groupedByName.get(seriesKey);
+            if (!existing || new Date(t.date).getTime() >= new Date(existing.date).getTime()) {
                 groupedByName.set(seriesKey, {
-                    ...existing,
-                    matchIds: [...existing.matchIds, ...t.matchIds]
+                    ...t,
+                    matchIds: Array.from(new Set((existing?.matchIds || []).concat(t.matchIds || []))),
                 });
             }
         });
-        
+
         const uniqueTournaments = Array.from(groupedByName.values());
         console.log('📊 Active tournaments (grouped by series):', uniqueTournaments.length, '/', tournaments.length);
         console.log('📊 Tournaments:', uniqueTournaments.map(t => ({ key: (t.giornataName || t.name), matchIds: t.matchIds.length })));
         console.log('📊 Total matches:', matches.length);
         return uniqueTournaments;
-    }, [tournaments, selectedSeriesKey]);
+    }, [tournaments, selectedSeriesKey, classicTournamentIdsWithResults, matches.length]);
+
+    useEffect(() => {
+        const availableKeys = [
+            ...completedTournaments.map(t => `series:${t.giornataName || t.name}`),
+            ...teamTournamentRoots.map(t => `tt:${t.id}`),
+        ];
+
+        if (availableKeys.length === 0) {
+            if (selectedTournamentKey !== '') {
+                shouldAutoExpandOnNextSelectionRef.current = false;
+                setSelectedTournamentKey('');
+            }
+            setExpandedTournament(null);
+            return;
+        }
+
+        if (!selectedTournamentKey || !availableKeys.includes(selectedTournamentKey)) {
+            shouldAutoExpandOnNextSelectionRef.current = false;
+            setSelectedTournamentKey(availableKeys[0]);
+            setExpandedTournament(null);
+        }
+    }, [completedTournaments, teamTournamentRoots, selectedTournamentKey]);
+
+    useEffect(() => {
+        if (!shouldAutoExpandOnNextSelectionRef.current) {
+            return;
+        }
+
+        shouldAutoExpandOnNextSelectionRef.current = false;
+
+        if (selectedSeriesKey) {
+            const selectedTournament = activeTournaments.find(t => (t.giornataName || t.name) === selectedSeriesKey) || null;
+            setExpandedTournament(selectedTournament?.id || null);
+            return;
+        }
+
+        if (!selectedTournamentKey) {
+            setExpandedTournament(null);
+        }
+    }, [selectedTournamentKey, selectedSeriesKey, activeTournaments]);
 
     useEffect(() => {
         // Team Tournaments: load minimal dataset to compute the first statistics slices
@@ -211,17 +265,19 @@ const StatistichePage: React.FC = () => {
         const cfg = teamTournamentConfigByRoot[selectedTeamTournamentRootId] || null;
         const matchdays = teamTournamentMatchdaysByRoot[selectedTeamTournamentRootId] || [];
 
-        const rrMatchdays = matchdays
-            .filter(md => md.phase === 'round_robin' || !md.phase)
-            .filter(md => md.status === 'completed');
-
-        const rrMatchdaysChrono = [...rrMatchdays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const completedMatchdays = matchdays.filter(md => md.status === 'completed');
+        const playedMatchdays = completedMatchdays.filter(md =>
+            (md.subMatches || []).some(sm => !sm.cancelled && teamSubMatchHasResult(sm.sets))
+        );
+        const rrPlayedMatchdays = playedMatchdays.filter(md => md.phase === 'round_robin' || !md.phase);
+        const playedMatchdaysChrono = [...playedMatchdays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         const scheduleTotal =
             cfg?.schedule?.kind === 'round_robin'
                 ? (cfg.schedule.days || []).reduce((sum: number, d: any) => sum + (d.matches?.length || 0), 0)
                 : 0;
-        const playedTotal = rrMatchdays.length;
+        const playedTotal = playedMatchdays.length;
+        const playedRoundRobin = rrPlayedMatchdays.length;
 
         const playerKey = (p: { name: string; surname: string }) => `${p.name}`.trim().toLowerCase() + '|' + `${p.surname}`.trim().toLowerCase();
         const displayName = (p: { name: string; surname: string }) => `${p.name} ${p.surname}`.trim();
@@ -232,8 +288,8 @@ const StatistichePage: React.FC = () => {
         };
 
         const formatDate = (iso: string) => new Date(iso).toLocaleDateString('it-IT');
-        const periodo = rrMatchdaysChrono.length > 0
-            ? { inizio: formatDate(rrMatchdaysChrono[0].date), fine: formatDate(rrMatchdaysChrono[rrMatchdaysChrono.length - 1].date) }
+        const periodo = playedMatchdaysChrono.length > 0
+            ? { inizio: formatDate(playedMatchdaysChrono[0].date), fine: formatDate(playedMatchdaysChrono[playedMatchdaysChrono.length - 1].date) }
             : { inizio: '—', fine: '—' };
 
         type PStat = {
@@ -275,7 +331,7 @@ const StatistichePage: React.FC = () => {
             pairAgg.set(key, prev);
         };
 
-        const chronological = [...rrMatchdays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const chronological = [...playedMatchdays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         let gamesDisputati = 0;
         let partiteDisputate = 0; // sub-match played (non-blank sets)
@@ -432,6 +488,7 @@ const StatistichePage: React.FC = () => {
 
         return {
             playedTotal,
+            playedRoundRobin,
             scheduleTotal,
             cfg,
             periodo,
@@ -445,24 +502,28 @@ const StatistichePage: React.FC = () => {
             bestPairsByWinRate,
             playerRows: rows,
         };
-    }, [selectedTeamTournamentRootId, teamTournamentConfigByRoot, teamTournamentMatchdaysByRoot]);
+    }, [selectedTeamTournamentRootId, teamTournamentConfigByRoot, teamTournamentMatchdaysByRoot, teamTournamentTeamsByRoot]);
 
     const calculateTournamentStats = (tournament: Tournament): TournamentStats | null => {
         // Get ALL tournament IDs with the same series key (for multi-giornata tournaments)
         const seriesKey = (tournament.giornataName || tournament.name);
-        const tournamentIds = tournaments
-            .filter(t => (t.giornataName || t.name) === seriesKey && t.status === 'completed')
-            .map(t => t.id);
-        
+        const seriesTournaments = tournaments.filter(t =>
+            t.type !== TournamentType.TorneoASquadre && (t.giornataName || t.name) === seriesKey
+        );
+        const tournamentIds = seriesTournaments.map(t => t.id);
+
         // Get all matches for this tournament using ONLY tournamentId (like RankingPage)
         const tournamentMatches = matches.filter(m => 
-            m.tournamentId && tournamentIds.includes(m.tournamentId)
+            m.tournamentId && tournamentIds.includes(m.tournamentId) && classicMatchHasResult(m)
         );
         
         if (tournamentMatches.length === 0) {
             console.log('⚠️ No matches found for tournament:', tournament.name);
             return null;
         }
+
+        const playedTournamentIds = Array.from(new Set(tournamentMatches.map(m => m.tournamentId).filter(Boolean))) as string[];
+        const isPartial = seriesTournaments.some(t => t.status !== 'completed');
         
         console.log('✅ Found', tournamentMatches.length, 'matches for tournament:', tournament.name, 'across', tournamentIds.length, 'giornate');
 
@@ -470,7 +531,7 @@ const StatistichePage: React.FC = () => {
         const giornate = Array.from(new Set(tournamentMatches.map(m => m.date))).sort();
         
         // Actually count number of tournament instances (giornate) instead of unique dates
-        const numeroGiornate = tournamentIds.length;
+        const numeroGiornate = playedTournamentIds.length;
         
         console.log('📊 Giornate (unique dates):', giornate.length, '| Tournament instances:', numeroGiornate);
         
@@ -609,7 +670,7 @@ const StatistichePage: React.FC = () => {
         // Calculate MVP - giocatore che ha vinto più giornate (FIXED: iterate over tournament instances)
         const giornateVinteMap = new Map<string, number>();
         
-        tournamentIds.forEach(tournamentId => {
+        playedTournamentIds.forEach(tournamentId => {
             // Use same filtering logic as main tournament matches (ONLY tournamentId)
             const giornataMatches = tournamentMatches.filter(m => 
                 m.tournamentId === tournamentId
@@ -1123,6 +1184,7 @@ const StatistichePage: React.FC = () => {
 
         return {
             tournament,
+            isPartial,
             giornate,
             numeroGiornate,
             totalePartite,
@@ -1178,7 +1240,7 @@ const StatistichePage: React.FC = () => {
                             Nessun Torneo Attivo
                         </h2>
                         <p className="text-gray-500 dark:text-gray-400">
-                            Per visualizzare le statistiche di un torneo è necessario che sia stata completata almeno una giornata
+                            Per visualizzare le statistiche di un torneo è necessaria almeno una partita completata
                         </p>
                     </div>
                 </Card>
@@ -1196,10 +1258,12 @@ const StatistichePage: React.FC = () => {
                     </label>
                     <select
                         value={selectedTournamentKey || ''}
-                        onChange={(e) => setSelectedTournamentKey(e.target.value)}
+                        onChange={(e) => {
+                            shouldAutoExpandOnNextSelectionRef.current = true;
+                            setSelectedTournamentKey(e.target.value);
+                        }}
                         className="w-full md:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                     >
-                        <option value="">Tutti i Tornei</option>
                         {teamTournamentRoots.length > 0 && (
                             <optgroup label="Tornei a Squadre">
                                 {teamTournamentRoots.map(t => (
@@ -1225,16 +1289,17 @@ const StatistichePage: React.FC = () => {
             {/* Draft Team Tournament stats (basic only) */}
             {isTeamTournamentMode && selectedTeamTournamentRootId && (() => {
                 const root = teamTournamentRoots.find(r => r.id === selectedTeamTournamentRootId) || null;
-                const rows = teamTournamentPlayerStatsByRoot[selectedTeamTournamentRootId] || [];
+                const rows = teamTournamentDerived?.playerRows || [];
                 const loading = !!teamTournamentLoadingByRoot[selectedTeamTournamentRootId];
                 const cfg = teamTournamentConfigByRoot[selectedTeamTournamentRootId] || null;
                 const teams = teamTournamentTeamsByRoot[selectedTeamTournamentRootId] || [];
                 const matchdays = teamTournamentMatchdaysByRoot[selectedTeamTournamentRootId] || [];
                 const derived = teamTournamentDerived;
+                const isPartial = !!root && root.status !== 'completed';
                 return (
                     <Card key={`tt-card:${selectedTeamTournamentRootId}`}>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                                         {root?.name || 'Torneo a Squadre'}
@@ -1243,14 +1308,14 @@ const StatistichePage: React.FC = () => {
                                         {root?.club || ''}{cfg?.scoringType ? ` • ${cfg.scoringType}` : ''}{cfg?.matchesPerDay ? ` • ${cfg.matchesPerDay} partite` : ''}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col items-end gap-2">
                                     <Button
                                         variant="secondary"
                                         size="sm"
                                         onClick={() => {
                                             if (!root || !cfg) return;
                                             printTeamTournamentStatistics(
-                                                { name: root.name, club: root.club, type: TournamentType.TorneoASquadre },
+                                                { name: root.name, club: root.club, type: TournamentType.TorneoASquadre, status: root.status },
                                                 cfg,
                                                 teams,
                                                 matchdays
@@ -1260,6 +1325,11 @@ const StatistichePage: React.FC = () => {
                                     >
                                         <span className="flex items-center gap-1"><PrintIcon /> Stampa riepilogo</span>
                                     </Button>
+                                    {isPartial && (
+                                        <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/25 dark:bg-amber-500/12 dark:text-amber-200">
+                                            Dati parziali
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
@@ -1269,7 +1339,14 @@ const StatistichePage: React.FC = () => {
                                 <StatBox label="Giocatori/Team" value={cfg?.defaultPlayersPerTeam ? String(cfg.defaultPlayersPerTeam) : '—'} />
                                 <StatBox label="Partite/Giornata" value={cfg?.matchesPerDay ? String(cfg.matchesPerDay) : '—'} />
                                 <StatBox label="Periodo" value={derived ? `${derived.periodo.inizio} - ${derived.periodo.fine}` : '—'} />
-                                <StatBox label="Partite RR" value={derived ? `${derived.playedTotal} / ${derived.scheduleTotal || '—'}` : '—'} />
+                                <StatBox
+                                    label={cfg?.format === 'ELIMINAZIONE DIRETTA' ? 'Matchday giocati' : 'Partite RR'}
+                                    value={derived
+                                        ? (cfg?.format === 'ELIMINAZIONE DIRETTA'
+                                            ? String(derived.playedTotal)
+                                            : `${derived.playedRoundRobin} / ${derived.scheduleTotal || '—'}`)
+                                        : '—'}
+                                />
                                 <StatBox label="Games Disputati" value={derived ? String(derived.gamesDisputati) : '—'} />
                                 <StatBox label="Media G/Partita" value={derived ? derived.mediaGamesPerPartita.toFixed(1) : '—'} />
                             </div>
@@ -1437,7 +1514,7 @@ const StatistichePage: React.FC = () => {
             })()}
 
             {/* Existing statistics for non-team tournaments (unchanged) */}
-            {!isTeamTournamentMode && tournamentStats.map(stats => {
+                            {!isTeamTournamentMode && tournamentStats.map(stats => {
                 const isExpanded = expandedTournament === stats.tournament.id;
                 
                 return (
@@ -1463,10 +1540,15 @@ const StatistichePage: React.FC = () => {
                             {isExpanded && (
                                 <div className="space-y-6 border-t border-gray-200 dark:border-gray-700 pt-6">
                                     {/* Bottone stampa */}
-                                    <div className="flex justify-end">
+                                    <div className="flex flex-col items-end gap-2">
                                         <Button onClick={() => handlePrintStats(stats)} variant="secondary" size="sm">
                                             <span className="flex items-center gap-1"><PrintIcon /> Stampa Riepilogo</span>
                                         </Button>
+                                        {stats.isPartial && (
+                                            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-300/25 dark:bg-amber-500/12 dark:text-amber-200">
+                                                Dati parziali
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* 1. Informazioni Generali */}

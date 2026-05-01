@@ -3078,20 +3078,21 @@ export const printTeamTournamentReport = (
 const buildTeamTournamentStatisticsBlocksHtml = (
     config: TeamTournamentConfig,
     teams: TeamTournamentTeam[],
-    matchdays: TeamTournamentMatchday[]
+    matchdays: TeamTournamentMatchday[],
+    isPartial: boolean
 ): string => {
     const normalize = (s: string) => (s || '').trim().toLowerCase();
     const playerKey = (p: TeamTournamentPlayerEntry) => `${normalize(p.name)}|${normalize(p.surname)}`;
     const playerLabel = (p: TeamTournamentPlayerEntry) => `${p.name} ${p.surname}`.trim();
 
     const totalRoundRobin = expectedTeamTournamentRoundRobinMatchdays(config);
-    const playedRoundRobin = matchdays
+    const completedMatchdays = matchdays.filter(md => md.status === 'completed');
+    const playedMatchdays = completedMatchdays.filter(md =>
+        (md.subMatches || []).some(sm => !sm.cancelled && Array.isArray(sm.sets) && !teamTournamentScoreIsBlank(sm.sets))
+    );
+    const playedRoundRobin = playedMatchdays
         .filter(md => (md.phase ?? 'round_robin') === 'round_robin')
-        .filter(md => md.status === 'completed' && md.summary).length;
-
-    const rrCompleted = matchdays
-        .filter(md => (md.phase ?? 'round_robin') === 'round_robin')
-        .filter(md => md.status === 'completed');
+        .length;
 
     type PlayerAgg = {
         name: string;
@@ -3140,7 +3141,7 @@ const buildTeamTournamentStatisticsBlocksHtml = (
         return created;
     };
 
-    const chronological = [...rrCompleted].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const chronological = [...playedMatchdays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const periodo = chronological.length > 0
         ? {
             inizio: new Date(chronological[0].date).toLocaleDateString('it-IT'),
@@ -3337,8 +3338,18 @@ const buildTeamTournamentStatisticsBlocksHtml = (
                     <div style="font-size: 14px; font-weight: 900; color: #111;">${config.matchesPerDay}</div>
                 </div>
             </div>
-            <div style="margin-top: 8px; font-size: 10px; color: #374151; font-weight: 800;">
-                Round robin: ${playedRoundRobin} / ${totalRoundRobin}
+            <div style="margin-top: 8px; display:flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                <div style="font-size: 10px; color: #374151; font-weight: 800;">
+                    ${config.format === 'ELIMINAZIONE DIRETTA'
+                        ? `Matchday giocati: ${playedMatchdays.length}`
+                        : `Round robin: ${playedRoundRobin} / ${totalRoundRobin}`
+                    }
+                </div>
+                ${isPartial ? `
+                    <div style="display:inline-flex; align-items:center; border:1px solid #fcd34d; background:#fffbeb; color:#92400e; border-radius:999px; padding:3px 8px; font-size:10px; font-weight:800;">
+                        Dati parziali
+                    </div>
+                ` : ''}
             </div>
         </div>
 
@@ -3423,7 +3434,7 @@ const buildTeamTournamentStatisticsBlocksHtml = (
 };
 
 export const printTeamTournamentStatistics = (
-    tournament: Pick<Tournament, 'name' | 'club' | 'type'>,
+    tournament: Pick<Tournament, 'name' | 'club' | 'type' | 'status'>,
     config: TeamTournamentConfig,
     teams: TeamTournamentTeam[],
     matchdays: TeamTournamentMatchday[]
@@ -3433,7 +3444,7 @@ export const printTeamTournamentStatistics = (
         return false;
     }
 
-    const blocks = buildTeamTournamentStatisticsBlocksHtml(config, teams, matchdays);
+    const blocks = buildTeamTournamentStatisticsBlocksHtml(config, teams, matchdays, tournament.status !== 'completed');
 
     const content = `
         <style>
@@ -3459,6 +3470,13 @@ export const printTeamTournamentStatistics = (
         <div class="print-page">
         <h1>${tournament.name}</h1>
         <h2>${tournament.club}</h2>
+        ${tournament.status !== 'completed' ? `
+            <div style="display:flex; justify-content:center; margin: 0 0 8px 0;">
+                <div style="display:inline-flex; align-items:center; border:1px solid #fcd34d; background:#fffbeb; color:#92400e; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:800;">
+                    Dati parziali - torneo in corso
+                </div>
+            </div>
+        ` : ''}
         <div class="separator"></div>
         ${blocks}
         </div>
@@ -4647,6 +4665,13 @@ export const printTournamentStatistics = (stats: any) => {
         <div style="margin-bottom: 2px;">
             <h1>Statistiche Torneo</h1>
             <h2>${stats.tournament.name} &mdash; ${stats.tournament.club}</h2>
+            ${stats.isPartial ? `
+                <div style="display:flex; justify-content:center; margin: 0 0 6px 0;">
+                    <div style="display:inline-flex; align-items:center; border:1px solid #fcd34d; background:#fffbeb; color:#92400e; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:800;">
+                        Dati parziali - torneo in corso
+                    </div>
+                </div>
+            ` : ''}
         </div>
 
         <div class="separator"></div>
