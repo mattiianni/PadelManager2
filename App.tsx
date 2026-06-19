@@ -41,7 +41,14 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const defaultTheme = prefersDark ? 'dark' : 'light';
+        const isDesktop = !(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+        const currentHour = new Date().getHours();
+        const isDarkTime = currentHour >= 20 || currentHour < 8;
+
+        let defaultTheme: Theme = prefersDark ? 'dark' : 'light';
+        if (isDesktop && isDarkTime) {
+            defaultTheme = 'dark';
+        }
         setTheme(defaultTheme);
     }, []);
 
