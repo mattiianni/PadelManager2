@@ -194,7 +194,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Database connection - ALWAYS USE NEON (dev and prod)
-let DATABASE_URL = process.env.DATABASE_URL;
+let DATABASE_URL = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
 if (DATABASE_URL) {
     DATABASE_URL = DATABASE_URL.trim().replace(/^["']|["']$/g, '');
 }
