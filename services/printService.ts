@@ -1669,7 +1669,8 @@ export const printTeamTournamentRoundRobinSchedule = (
         </div>
     `;
 
-    return openPrintWindow('Torneo a Squadre - Round Robin', content);
+    const printTitle = `${tournament.name} - Round Robin`.replace(/\s+/g, '_');
+    return openPrintWindow(printTitle, content);
 };
 
 export const printTeamTournamentMatchdayCalendar = (
@@ -1817,7 +1818,8 @@ export const printTeamTournamentMatchdayCalendar = (
         </div>
     `;
 
-    return openPrintWindow('Torneo a Squadre - Calendario', content);
+    const printTitle = `${tournament.name} - Calendario`.replace(/\s+/g, '_');
+    return openPrintWindow(printTitle, content);
 };
 
 const teamTournamentScoreIsBlank = (sets: any): boolean => {
@@ -2153,6 +2155,7 @@ export const printTeamTournamentMatchdayReport = (
 
     const team1Name = teamNameByNumber(matchday.team1Number);
     const team2Name = teamNameByNumber(matchday.team2Number);
+    const printTitle = `${team1Name}_vs_${team2Name}`.replace(/\s+/g, '_');
 
     const visibleSubMatches = (matchday.subMatches || []).filter(sm => !sm.cancelled);
 
@@ -2306,7 +2309,7 @@ export const printTeamTournamentMatchdayReport = (
             </div>
         `;
 
-        return openPrintWindow('Torneo a Squadre - Giornata', eliminationContent, '', existingWindow);
+        return openPrintWindow(printTitle, eliminationContent, '', existingWindow);
     }
 
     const standingsCtx = (() => {
@@ -2400,7 +2403,7 @@ export const printTeamTournamentMatchdayReport = (
             </div>
 	    `;
 
-    return openPrintWindow('Torneo a Squadre - Giornata', content, "", existingWindow);
+    return openPrintWindow(printTitle, content, "", existingWindow);
 };
 
 export const printTeamTournamentReport = (
@@ -2415,6 +2418,8 @@ export const printTeamTournamentReport = (
         alert('Formato torneo non supportato per la stampa a squadre.');
         return false;
     }
+
+    const printTitle = `${tournament.name} - Report`.replace(/\s+/g, '_');
 
     if (isTeamTournamentEliminationDirect(config)) {
         const bracketHtml = renderTeamTournamentEliminationBracket(teams, fixtures, matchdays);
@@ -2559,7 +2564,7 @@ export const printTeamTournamentReport = (
             </div>
         `;
 
-        return openPrintWindow('Torneo a Squadre - Eliminazione Diretta', content, pageStyles, existingWindow);
+        return openPrintWindow(printTitle, content, pageStyles, existingWindow);
     }
 
     const standings = calculateTeamTournamentStandings(teams, matchdays, config.scoringType);
@@ -3072,7 +3077,7 @@ export const printTeamTournamentReport = (
             </div>
 	    `;
 
-    return openPrintWindow('Torneo a Squadre - Report', content, "", existingWindow);
+    return openPrintWindow(printTitle, content, "", existingWindow);
 };
 
 const buildTeamTournamentStatisticsBlocksHtml = (
