@@ -61,7 +61,7 @@ interface PadelStore {
     getTeamTournamentMatchdayByTournamentDayId: (tournamentDayId: string) => Promise<TeamTournamentMatchday>;
     saveTeamTournamentMatchdayResults: (matchdayId: string, payload: {
         status: 'scheduled' | 'completed';
-        subMatches: Array<Pick<TeamTournamentSubMatch, 'matchIndex' | 'sets' | 'cancelled'>>;
+        subMatches: Array<Pick<TeamTournamentSubMatch, 'matchIndex' | 'sets' | 'cancelled'> & { team1Players?: TeamTournamentPlayerEntry[], team2Players?: TeamTournamentPlayerEntry[] }>;
     }) => Promise<any>;
     getTeamTournamentMatchdays: (rootTournamentId: string) => Promise<TeamTournamentMatchday[]>;
     getTeamTournamentPlayerStats: (rootTournamentId: string) => Promise<TeamTournamentPlayerStatsRow[]>;
@@ -305,7 +305,7 @@ export const PadelStoreProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const saveTeamTournamentMatchdayResults = async (matchdayId: string, payload: {
         status: 'scheduled' | 'completed';
-        subMatches: Array<Pick<TeamTournamentSubMatch, 'matchIndex' | 'sets' | 'cancelled'>>;
+        subMatches: Array<Pick<TeamTournamentSubMatch, 'matchIndex' | 'sets' | 'cancelled'> & { team1Players?: TeamTournamentPlayerEntry[], team2Players?: TeamTournamentPlayerEntry[] }>;
     }): Promise<any> => {
         const response = await apiRequest<{ success: boolean; summary?: any }>(`/api/team-tournament-matchdays/${matchdayId}/results`, {
             method: 'PUT',

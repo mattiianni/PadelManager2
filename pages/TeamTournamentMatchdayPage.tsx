@@ -96,6 +96,10 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
         team1: [string, string];
         team2: [string, string];
     }>>([]);
+    const [editSubMatchSelections, setEditSubMatchSelections] = useState<Array<{
+        team1: [string, string];
+        team2: [string, string];
+    }>>([]);
     const [subMatchSets, setSubMatchSets] = useState<Record<number, SetScore[]>>({});
     const [savedSummary, setSavedSummary] = useState<any | null>(null);
     const [cancelledByIndex, setCancelledByIndex] = useState<Record<number, boolean>>({});
@@ -265,6 +269,26 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
         });
     }, [matchesPerDay, mode]);
 
+    // Initialize edit selections from loaded matchday
+    useEffect(() => {
+        if (mode !== 'results' || !matchday || !rosterByTeamNumber.size) return;
+        const roster1 = rosterByTeamNumber.get(matchday.team1Number) || [];
+        const roster2 = rosterByTeamNumber.get(matchday.team2Number) || [];
+        
+        const initialEdits = matchday.subMatches.map(sm => {
+            const findIdx = (p: any, roster: typeof roster1) => {
+                if (!p || !p.name) return '';
+                const item = roster.find(r => r.entry.name === p.name && r.entry.surname === p.surname);
+                return item ? String(item.idx) : '';
+            };
+            return {
+                team1: [findIdx(sm.team1Players[0], roster1), findIdx(sm.team1Players[1], roster1)] as [string, string],
+                team2: [findIdx(sm.team2Players[0], roster2), findIdx(sm.team2Players[1], roster2)] as [string, string],
+            };
+        });
+        setEditSubMatchSelections(initialEdits);
+    }, [mode, matchday, rosterByTeamNumber]);
+
     const roundInfo = useMemo(() => findRoundInfo(config, team1Number, team2Number), [config, team1Number, team2Number]);
 
     const playedPairKeys = useMemo(() => {
@@ -418,7 +442,8 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
     const usedPlayersForTeam = (teamNumber: number | null) => {
         if (!teamNumber) return new Set<string>();
         const used = new Set<string>();
-        subMatchSelections.forEach(sel => {
+        const selections = mode === 'create' ? subMatchSelections : editSubMatchSelections;
+        selections.forEach(sel => {
             const arr = teamNumber === team1Number ? sel.team1 : (teamNumber === team2Number ? sel.team2 : null);
             if (!arr) return;
             arr.forEach(v => { if (v) used.add(v); });
@@ -546,12 +571,31 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
         try {
             const payload = {
                 status: finalize ? 'completed' as const : 'scheduled' as const,
-                subMatches: (matchday.subMatches || []).map(sm => ({
-                    matchIndex: sm.matchIndex,
-                    sets: subMatchSets[sm.matchIndex] || [{ team1: 0, team2: 0 }],
-                    cancelled: !!cancelledByIndex[sm.matchIndex],
-                })),
+                subMatches: (matchday.subMatches || []).map((sm, index) => {
+                    const editSel = editSubMatchSelections[index] || { team1: [], team2: [] };
+                    const team1Players = editSel.team1.filter(Boolean).map(v => getRoster(matchday.team1Number).find(p => String(p.idx) === v)?.entry).filter(Boolean) as TeamTournamentPlayerEntry[];
+                    const team2Players = editSel.team2.filter(Boolean).map(v => getRoster(matchday.team2Number).find(p => String(p.idx) === v)?.entry).filter(Boolean) as TeamTournamentPlayerEntry[];
+                    return {
+                        matchIndex: sm.matchIndex,
+                        sets: subMatchSets[sm.matchIndex] || [{ team1: 0, team2: 0 }],
+                        cancelled: !!cancelledByIndex[sm.matchIndex],
+                        team1Players,
+                        team2Players
+                    };
+                }),
             };
+            
+            // Validate minimum played matches before finalizing
+            if (finalize) {
+                const uncancelledCount = payload.subMatches.filter(sm => !sm.cancelled).length;
+                const mpd = matchday.matchesPerDay;
+                const neededWins = mpd === 5 ? 3 : 2;
+                if (uncancelledCount < neededWins) {
+                    setError(`Devi inserire almeno ${neededWins} partite per poter decretare un vincitore e chiudere la giornata.`);
+                    setIsSavingResults(false);
+                    return;
+                }
+            }
             const summary = await saveTeamTournamentMatchdayResults(matchday.id, payload);
             setSavedSummary(summary);
 
@@ -907,44 +951,92 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                         )}
 
                         <div className="space-y-3">
-                            {matchday.subMatches.filter(sm => !cancelledByIndex[sm.matchIndex]).map(sm => {
-                                const isCancellableIndex =
-                                    (matchday.matchesPerDay === 3 && sm.matchIndex === 3) ||
-                                    (matchday.matchesPerDay === 5 && (sm.matchIndex === 4 || sm.matchIndex === 5));
-                                const canCancel = !!live.winner && isCancellableIndex;
+                            {matchday.subMatches.map((sm, idx) => {
+                                const isCancelled = cancelledByIndex[sm.matchIndex];
+                                const editSel = editSubMatchSelections[idx] || { team1: ['', ''], team2: ['', ''] };
+                                
+                                if (isCancelled) {
+                                    return (
+                                        <div key={sm.matchIndex} className="p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                                Partita {sm.matchIndex} cancellata
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    setCancelledByIndex(prev => ({ ...prev, [sm.matchIndex]: false }));
+                                                    setEditSubMatchSelections(prev => prev.map((p, i) => i === idx ? { team1: ['', ''], team2: ['', ''] } : p));
+                                                }}
+                                                disabled={isSavingResults || loading || resultsLocked}
+                                                className="!bg-orange-500 hover:!bg-orange-600 !border-orange-600 !text-white text-xs py-1.5"
+                                            >
+                                                + Aggiungi Nuova Partita
+                                            </Button>
+                                        </div>
+                                    );
+                                }
+
+                                const roster1 = getRoster(matchday.team1Number);
+                                const roster2 = getRoster(matchday.team2Number);
+                                const used1 = usedPlayersForTeam(matchday.team1Number);
+                                const used2 = usedPlayersForTeam(matchday.team2Number);
+                                
+                                const localUsed1 = new Set(editSel.team1.filter(Boolean));
+                                const localUsed2 = new Set(editSel.team2.filter(Boolean));
+
                                 return (
                                 <div key={sm.matchIndex} className="space-y-2">
                                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
                                         Partita {sm.matchIndex} di {matchday.matchesPerDay}
                                     </div>
                                     <div className="relative grid grid-cols-1 sm:grid-cols-3 items-center gap-2 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                        {isCancellableIndex && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (!canCancel) return;
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (window.confirm('Sei sicuro di voler cancellare questa partita?')) {
                                                     setCancelledByIndex(prev => ({ ...prev, [sm.matchIndex]: true }));
                                                     setSubMatchSets(prev => ({ ...prev, [sm.matchIndex]: [{ team1: 0, team2: 0 }] }));
-                                                }}
-                                                disabled={!canCancel || isSavingResults || loading || resultsLocked}
-                                                className={`absolute top-2 right-2 h-6 w-6 rounded-full text-xs font-bold border ${
-                                                    canCancel
-                                                        ? 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 border-gray-200 dark:border-gray-600 cursor-not-allowed'
-                                                }`}
-                                                title={canCancel ? 'Annulla partita (non giocata)' : 'Puoi annullare solo quando la sfida e\' gia\' decisa'}
-                                                aria-label="Cancel sub match"
-                                            >
-                                                X
-                                            </button>
-                                        )}
-                                        <div className="text-center sm:text-right text-sm">
-                                            <p className="font-semibold text-gray-900 dark:text-white">
-                                                {sm.team1Players[0] ? `${sm.team1Players[0].name} ${sm.team1Players[0].surname}`.trim() : ''}
-                                            </p>
-                                            <p className="font-semibold text-gray-900 dark:text-white">
-                                                {sm.team1Players[1] ? `${sm.team1Players[1].name} ${sm.team1Players[1].surname}`.trim() : ''}
-                                            </p>
+                                                }
+                                            }}
+                                            disabled={isSavingResults || loading || resultsLocked}
+                                            className={`absolute top-2 right-2 h-6 w-6 rounded-full text-xs font-bold border bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700`}
+                                            title="Annulla partita"
+                                            aria-label="Cancel sub match"
+                                        >
+                                            X
+                                        </button>
+                                        
+                                        <div className="text-center sm:text-right">
+                                            <div className="grid grid-cols-1 gap-1">
+                                                {[0, 1].map(slot => (
+                                                    <select
+                                                        key={slot}
+                                                        value={editSel.team1[slot]}
+                                                        onChange={e => {
+                                                            const v = e.target.value;
+                                                            setEditSubMatchSelections(prev => prev.map((p, i) => {
+                                                                if (i !== idx) return p;
+                                                                const next: any = { ...p, team1: [...p.team1] };
+                                                                next.team1[slot] = v;
+                                                                return next;
+                                                            }));
+                                                        }}
+                                                        className="block w-full sm:max-w-[150px] sm:ml-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-xs sm:text-sm"
+                                                        disabled={isSavingResults || loading || resultsLocked}
+                                                    >
+                                                        <option value="">Giocatore</option>
+                                                        {roster1.map(p => {
+                                                            const value = String(p.idx);
+                                                            const disabled = (used1.has(value) && !localUsed1.has(value)) || (localUsed1.has(value) && editSel.team1[slot] !== value);
+                                                            return (
+                                                                <option key={value} value={value} disabled={disabled}>
+                                                                    {p.label}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                ))}
+                                            </div>
                                         </div>
                                     <div className="text-center">
                                         <MatchScoreInput
@@ -954,13 +1046,37 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                                         />
                                         <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-medium">vs</div>
                                     </div>
-                                        <div className="text-center sm:text-left text-sm">
-                                            <p className="font-semibold text-gray-900 dark:text-white">
-                                                {sm.team2Players[0] ? `${sm.team2Players[0].name} ${sm.team2Players[0].surname}`.trim() : ''}
-                                            </p>
-                                            <p className="font-semibold text-gray-900 dark:text-white">
-                                                {sm.team2Players[1] ? `${sm.team2Players[1].name} ${sm.team2Players[1].surname}`.trim() : ''}
-                                            </p>
+                                        <div className="text-center sm:text-left">
+                                            <div className="grid grid-cols-1 gap-1">
+                                                {[0, 1].map(slot => (
+                                                    <select
+                                                        key={slot}
+                                                        value={editSel.team2[slot]}
+                                                        onChange={e => {
+                                                            const v = e.target.value;
+                                                            setEditSubMatchSelections(prev => prev.map((p, i) => {
+                                                                if (i !== idx) return p;
+                                                                const next: any = { ...p, team2: [...p.team2] };
+                                                                next.team2[slot] = v;
+                                                                return next;
+                                                            }));
+                                                        }}
+                                                        className="block w-full sm:max-w-[150px] sm:mr-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-1.5 px-2 focus:outline-none focus:ring-sky-500 focus:border-sky-500 text-xs sm:text-sm"
+                                                        disabled={isSavingResults || loading || resultsLocked}
+                                                    >
+                                                        <option value="">Giocatore</option>
+                                                        {roster2.map(p => {
+                                                            const value = String(p.idx);
+                                                            const disabled = (used2.has(value) && !localUsed2.has(value)) || (localUsed2.has(value) && editSel.team2[slot] !== value);
+                                                            return (
+                                                                <option key={value} value={value} disabled={disabled}>
+                                                                    {p.label}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

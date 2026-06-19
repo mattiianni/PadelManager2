@@ -3582,15 +3582,34 @@ app.put('/api/team-tournament-matchdays/:matchdayId/results', async (req, res) =
                 ? null
                 : (Array.isArray(sm?.sets) ? sm.sets.map(s => ({ team1: Number(s?.team1 || 0), team2: Number(s?.team2 || 0) })) : null);
             const winner = cancelled ? null : calcMatchWinnerFromSets(sets, scoringType);
-            await sql`
-                UPDATE team_tournament_matchday_matches
-                SET sets = ${sets ? JSON.stringify(sets) : null}::jsonb,
-                    winner = ${winner},
-                    cancelled = ${cancelled},
-                    updated_at = NOW()
-                WHERE matchday_id = ${matchdayId}
-                AND match_index = ${i + 1}
-            `;
+            
+            let updateQuery;
+            if (Array.isArray(sm?.team1Players) && Array.isArray(sm?.team2Players)) {
+                const team1Players = sm.team1Players.map(normalizeTeamTournamentPlayerEntry);
+                const team2Players = sm.team2Players.map(normalizeTeamTournamentPlayerEntry);
+                updateQuery = sql`
+                    UPDATE team_tournament_matchday_matches
+                    SET sets = ${sets ? JSON.stringify(sets) : null}::jsonb,
+                        winner = ${winner},
+                        cancelled = ${cancelled},
+                        team1_players = ${JSON.stringify(team1Players)}::jsonb,
+                        team2_players = ${JSON.stringify(team2Players)}::jsonb,
+                        updated_at = NOW()
+                    WHERE matchday_id = ${matchdayId}
+                    AND match_index = ${i + 1}
+                `;
+            } else {
+                updateQuery = sql`
+                    UPDATE team_tournament_matchday_matches
+                    SET sets = ${sets ? JSON.stringify(sets) : null}::jsonb,
+                        winner = ${winner},
+                        cancelled = ${cancelled},
+                        updated_at = NOW()
+                    WHERE matchday_id = ${matchdayId}
+                    AND match_index = ${i + 1}
+                `;
+            }
+            await updateQuery;
         }
 
         const normalizedStatus = status === 'completed' ? 'completed' : 'scheduled';
