@@ -699,7 +699,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
         // Log successful login
         await sql`
             INSERT INTO audit_logs (workspace_id, action, ip_address, user_agent, details)
-            VALUES (${matchedCode.workspace_id}, 'login_success', ${ip}, ${req.headers['user-agent'] || ''}, ${JSON.stringify({ label: matchedCode.label })})
+            VALUES (${matchedCode.workspace_id}, 'login_success', ${ip}, ${req.headers['user-agent'] || ''}, ${JSON.stringify({ label: matchedCode.label, isAdmin: matchedCode.is_admin })})
         `;
 
         logger.info('Login successful', { workspace: matchedCode.workspace_name, admin: matchedCode.is_admin });
@@ -2547,7 +2547,7 @@ app.post('/api/team-tournaments/:id/complete-configuration', async (req, res) =>
             return res.status(400).json({ message: 'Inserisci il nome di tutte le squadre prima di completare la configurazione.' });
         }
 
-        const minPlayersPerTeam = matchesPerDay === 5 ? 8 : 6;
+        const minPlayersPerTeam = matchesPerDay * 2;
         const insufficientTeams = teamsResult.filter(t => {
             const players = Array.isArray(t.players) ? t.players : [];
             const configured = players.filter(p => String(p?.name || '').trim() && String(p?.surname || '').trim()).length;

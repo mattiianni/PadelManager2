@@ -431,10 +431,11 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
         teams.forEach(t => {
             const filled = (t.players || []).filter(p => String(p?.name || '').trim() && String(p?.surname || '').trim()).length;
             const target = Number(t.targetPlayerCount || 0);
-            map.set(t.teamNumber, { filled, target, complete: target > 0 ? filled >= target : filled > 0 });
+            const minRequired = matchesPerDay * 2;
+            map.set(t.teamNumber, { filled, target, complete: filled >= minRequired });
         });
         return map;
-    }, [teams]);
+    }, [teams, matchesPerDay]);
 
     const selectedTeamsComplete = useMemo(() => {
         const t1 = team1Number ? teamCompletion.get(team1Number) : null;

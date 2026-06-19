@@ -766,15 +766,14 @@ const DrawPage: React.FC<DrawPageProps> = ({
     const totalConfiguredPlayers = teamTournamentTeams.reduce((sum, team) => sum + getConfiguredPlayersCount(team), 0);
     const seededTeams = teamTournamentTeams.filter(team => !!team.isSeeded);
     const maxSeededTeams = Math.floor((teamTournamentConfig?.initialTeamCount || teamTournamentTeams.length || 0) / 2);
-    const hasHalfPlayersConfigured = totalTargetPlayers > 0 && totalConfiguredPlayers >= Math.ceil(totalTargetPlayers / 2);
     const allTeamsNamed = teamTournamentTeams.length > 0 && teamTournamentTeams.every(team => team.name.trim() && team.name.trim() !== `Squadra ${team.teamNumber}`);
-    const minPlayersPerTeamForMatchday = (teamTournamentConfig?.matchesPerDay || 3) === 5 ? 8 : 6;
+    const minPlayersPerTeamForMatchday = (teamTournamentConfig?.matchesPerDay || 3) * 2;
     const hasEnoughPlayersPerTeam = teamTournamentTeams.length > 0 && teamTournamentTeams.every(team => getConfiguredPlayersCount(team) >= minPlayersPerTeamForMatchday);
     const hasRequiredChoices = !!teamTournamentConfig?.format
         && !!teamTournamentConfig?.matchesPerDay
         && !!teamTournamentConfig?.scoringType
         && (teamTournamentConfig?.format === 'ELIMINAZIONE DIRETTA' || !!teamTournamentConfig?.roundRobinFinalPhase);
-    const canCompleteTeamTournamentConfiguration = hasHalfPlayersConfigured && allTeamsNamed && hasRequiredChoices && hasEnoughPlayersPerTeam;
+    const canCompleteTeamTournamentConfiguration = allTeamsNamed && hasRequiredChoices && hasEnoughPlayersPerTeam;
     const eliminationBracketPhaseOrder: Array<TeamTournamentFixture['phase']> = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final_1_2'];
     const bracketPhaseLabel = (phase: TeamTournamentFixture['phase'], slot: number) => {
         if (phase === 'round_of_32') return `${slot}° Trentaduesimo`;

@@ -2,6 +2,13 @@
 
 Questo file consolida gli storici precedentemente salvati come `UPDATE_SUMMARY_*.md`.
 
+## v4.1.5 — 2026-06-19
+
+- Deploy: Configurato deploy su Vercel e risolte incompatibilità Serverless (incluso pass a `bcryptjs`).
+- Admin: Evidenziato l'accesso di utenti non-admin nell'Audit Log con pill rossa.
+- UI Layout: Allineato il nome del workspace sotto versione e data nell'header desktop.
+- Riferimenti versione aggiornati a `4.1.5` e data a `Giu 2026`.
+
 ## v4.1.4 — 2026-05-01
 
 - Admin: tab `Invia dati` + API per copiare un torneo tra workspace (dati indipendenti).

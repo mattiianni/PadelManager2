@@ -31,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme }) =>
                                     Padel Elo Manager
                                 </h1>
                             </div>
-                            <div className="grid grid-cols-1 gap-1 text-xs leading-tight text-slate-400 md:grid-cols-[auto_auto] md:items-center md:gap-3">
+                            <div className="flex flex-col gap-0.5 text-xs leading-tight text-slate-400">
                                 <p>v{APP_VERSION} / {APP_MONTH}</p>
                                 {workspace && (
                                     <p className="truncate text-sky-300">

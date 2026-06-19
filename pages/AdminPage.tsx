@@ -850,9 +850,13 @@ const AdminPage: React.FC = () => {
                                         <td className="py-2 pr-4 text-xs whitespace-nowrap">{formatDate(log.created_at)}</td>
                                         <td className="py-2 pr-4">
                                             <span className={`text-xs px-2 py-0.5 rounded ${
-                                                log.action === 'login_success' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                                                log.action === 'login_failed' ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' :
-                                                'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                                                log.action === 'login_success'
+                                                    ? (log.details && log.details.isAdmin === false
+                                                        ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                                        : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200')
+                                                    : log.action === 'login_failed'
+                                                    ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                                             }`}>
                                                 {log.action}
                                             </span>

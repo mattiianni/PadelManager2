@@ -2,7 +2,7 @@
 
 Applicazione full-stack per la gestione di tornei di padel con ranking ELO, statistiche, PDF e isolamento dati per workspace.
 
-Versione documentata: `v4.1.4`
+Versione documentata: `v4.1.5`
 
 ## Stato attuale
 
@@ -17,10 +17,18 @@ I file `pages/_app.tsx`, `pages/_document.tsx`, `pages/index.tsx` e `next.config
 
 ## Routine release
 
-- Versione corrente: `4.1.4`
-- Dalla release successiva si incrementa la patch: `4.1.4`, `4.1.5`, ...
+- Versione corrente: `4.1.5`
+- Dalla release successiva si incrementa la patch: `4.1.5`, `4.1.6`, ...
 - Quando cambia il mese reale, si aggiorna anche il mese visibile nei riferimenti applicativi e documentali (`Gen`, `Feb`, `Mar`, `Apr`, `Mag`, `Giu`, ...).
 - Ad ogni release vanno aggiornati i riferimenti versione nell'app, la documentazione `.md`, il `README`, il backup `.zip` e il dump completo `.txt` del codice.
+
+## Aggiornamenti v4.1.5
+
+- Versione prodotto aggiornata a `4.1.5`.
+- Deploy: configurato deploy serverless su Vercel con passaggio a `bcryptjs` e configurazione `vercel.json` con filesystem routing.
+- Admin: pillola rossa per login non-admin per facilitare il monitoraggio degli accessi.
+- UI Layout: posizionato il nome del workspace sotto data e versione in visualizzazione desktop.
+- Data release e visualizzazioni PDF allineate a `Giu 2026`.
 
 ## Aggiornamenti v4.1.4
 
@@ -193,6 +201,7 @@ cp .env.example .env
 
 ```env
 DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+NEON_DATABASE_URL=postgresql://user:password@host/db?sslmode=require  # Opzionale (alternativa prioritaria per Vercel/Neon integration)
 PORT=3001
 NODE_ENV=development
 VITE_PORT=3000
