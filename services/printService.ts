@@ -2216,7 +2216,7 @@ export const printTeamTournamentMatchdayReport = (
                 twoRowTable(team1Name, t1w, team2Name, t2w)
             );
 
-	            const scoringBlock = (config.scoringType === 'Punti')
+	            const scoringBlock = (config.scoringType === 'Punti' || config.scoringType === 'Punti + Resilienza')
 	                ? block(
 	                    'Punti',
 	                    '#2563eb',

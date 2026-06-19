@@ -899,7 +899,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                             <div className="rounded-lg bg-sky-50 dark:bg-sky-900 border border-sky-300/55 dark:border-sky-300/18 p-4">
                                 <div className="text-sm text-sky-800 dark:text-sky-200 font-semibold text-center">
                                     Vittorie: {savedSummary.team1Wins}-{savedSummary.team2Wins}
-                                    {config?.scoringType === 'Punti'
+                                    {config?.scoringType === 'Punti' || config?.scoringType === 'Punti + Resilienza'
                                         ? ` · Punti: ${savedSummary.team1Points}-${savedSummary.team2Points}`
                                         : ` · Differenza games: ${(Number(savedSummary.gamesDiff) >= 0 ? '+' : '')}${Number(savedSummary.gamesDiff)}`}
                                 </div>
@@ -1051,7 +1051,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                 <Card title="Torneo a squadre">
                     <p className="text-gray-500 dark:text-gray-400">Nessun torneo selezionato.</p>
                     <div className="pt-4">
-                        <Button onClick={() => { clearNavigationState(); setActivePage('Dashboard'); }} variant="secondary">Torna alla home</Button>
+                        <Button onClick={() => { clearNavigationState(); setActivePage('Tournaments'); }} variant="secondary">Torna a Tornei</Button>
                     </div>
                 </Card>
             </div>
@@ -1075,7 +1075,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                 <Card title="Torneo a squadre">
                     <p className="text-gray-500 dark:text-gray-400">Completa prima la configurazione del torneo a squadre.</p>
                     <div className="pt-4">
-                        <Button onClick={() => { clearNavigationState(); setActivePage('Dashboard'); }} variant="secondary">Torna alla home</Button>
+                        <Button onClick={() => { clearNavigationState(); setActivePage('Tournaments'); }} variant="secondary">Torna a Tornei</Button>
                     </div>
                 </Card>
             </div>

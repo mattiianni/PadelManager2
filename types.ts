@@ -108,7 +108,7 @@ export interface TeamTournamentConfig {
     format: 'ROUND ROBIN' | 'ANDATA E RITORNO' | 'ELIMINAZIONE DIRETTA';
     matchesPerDay: 3 | 5;
     roundRobinFinalPhase: 'FINALI' | 'SEMIFINALI E FINALI' | 'QUARTI, SEMIFINALI E FINALI' | null;
-    scoringType: 'Punti' | 'Differenza Games';
+    scoringType: 'Punti' | 'Differenza Games' | 'Punti + Resilienza';
     configCompleted?: boolean;
     schedule?: TeamTournamentSchedule | null;
     hasResults?: boolean; // true if at least one matchday has non-zero set scores saved

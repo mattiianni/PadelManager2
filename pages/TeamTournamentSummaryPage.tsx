@@ -231,8 +231,8 @@ const TeamTournamentSummaryPage: React.FC<TeamTournamentSummaryPageProps> = ({
             <Card>
                 <div className="text-gray-700 dark:text-gray-200">Nessun torneo selezionato.</div>
                 <div className="mt-4">
-                    <Button onClick={() => { clearNavigationState(); setActivePage('Dashboard'); }}>
-                        Home
+                    <Button onClick={() => { clearNavigationState(); setActivePage('Tournaments'); }}>
+                        Tornei
                     </Button>
                 </div>
             </Card>
@@ -264,8 +264,8 @@ const TeamTournamentSummaryPage: React.FC<TeamTournamentSummaryPageProps> = ({
                         >
                             Stampa
                         </Button>
-                        <Button onClick={() => { clearNavigationState(); setActivePage('Dashboard'); }} className="min-w-0 flex-1 sm:flex-none">
-                            Home
+                        <Button onClick={() => { clearNavigationState(); setActivePage('Tournaments'); }} className="min-w-0 flex-1 sm:flex-none">
+                            Tornei
                         </Button>
                     </div>
                 </div>

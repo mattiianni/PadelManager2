@@ -25,7 +25,7 @@ type DrawEntryChoice = 'menu' | 'pairs' | 'team' | 'existing';
 type TeamTournamentFormat = 'ROUND ROBIN' | 'ANDATA E RITORNO' | 'ELIMINAZIONE DIRETTA';
 type TeamTournamentMatchesPerDay = 3 | 5;
 type RoundRobinFinalPhase = 'FINALI' | 'SEMIFINALI E FINALI' | 'QUARTI, SEMIFINALI E FINALI';
-type TeamTournamentScoringType = 'Punti' | 'Differenza Games';
+type TeamTournamentScoringType = 'Punti' | 'Differenza Games' | 'Punti + Resilienza';
 type TeamTournamentConfigView = 'config' | 'summary';
 
 const TEAM_TOURNAMENT_FORMAT_LABELS: Record<TeamTournamentFormat, string> = {
@@ -500,7 +500,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
             setTeamTournamentMatchesPerDay(3);
             setTeamTournamentRoundRobinFinalPhase('FINALI');
             setTeamTournamentScoringType('Punti');
-            setActivePage('Dashboard');
+            setActivePage('Tournaments');
         } catch (err: any) {
             setError(err.message || 'Errore nella creazione del torneo a squadre.');
         } finally {
@@ -823,7 +823,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
             onFinish={() => {
                 setShowTournamentFlow(false);
                 setDrawnPairs(null);
-                setActivePage('Dashboard');
+                setActivePage('Tournaments');
             }}
             preselectedTournamentName={newGiornataForTournament}
             clearPreselectedTournament={() => setNewGiornataForTournament(null)}
@@ -1026,6 +1026,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
                     >
                         <option value="Punti">Punti</option>
                         <option value="Differenza Games">Differenza Games</option>
+                        <option value="Punti + Resilienza">Punti + Resilienza</option>
                     </select>
                 </div>
 
@@ -1273,7 +1274,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                     variant="secondary"
                                     onClick={() => {
                                         clearTeamTournamentToConfigure();
-                                        setActivePage('Dashboard');
+                                        setActivePage('Tournaments');
                                     }}
                                 >
                                     Torna a Tornei
@@ -1377,7 +1378,6 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                                     }
                                                 }}
                                                 className="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                                disabled={isSavingTeamTournamentConfig}
                                             >
                                                 <option value={3}>3</option>
                                                 <option value={5} disabled={teamTournamentConfig.defaultPlayersPerTeam < 8}>5</option>
@@ -1389,7 +1389,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                                 value={teamTournamentConfig.format === 'ELIMINAZIONE DIRETTA' ? '' : (teamTournamentConfig.roundRobinFinalPhase || 'FINALI')}
                                                 onChange={e => handleTeamTournamentRoundRobinFinalPhaseChange(e.target.value as RoundRobinFinalPhase)}
                                                 className="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                                disabled={isSavingTeamTournamentConfig || teamTournamentConfig.format === 'ELIMINAZIONE DIRETTA'}
+                                                disabled={teamTournamentConfig.format === 'ELIMINAZIONE DIRETTA'}
                                             >
                                                 <option value="">Non applicabile</option>
                                                 <option value="FINALI">Finali</option>
@@ -1403,10 +1403,10 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                                 value={teamTournamentConfig.scoringType}
                                                 onChange={e => handleTeamTournamentScoringTypeChange(e.target.value as TeamTournamentScoringType)}
                                                 className="mt-1 block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                                disabled={isSavingTeamTournamentConfig}
                                             >
                                                 <option value="Punti">Punti</option>
                                                 <option value="Differenza Games">Differenza Games</option>
+                                                <option value="Punti + Resilienza">Punti + Resilienza</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1465,7 +1465,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                     variant="secondary"
                                     onClick={() => {
                                         clearTeamTournamentToConfigure();
-                                        setActivePage('Dashboard');
+                                        setActivePage('Tournaments');
                                     }}
                                 >
                                     Torna a Tornei
@@ -1604,7 +1604,8 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                 disabled={isSavingTeamTournamentConfig}
                             >
                                 <option value="Punti">Punti</option>
-                                <option value="Differenza Games">Differenza Games</option>
+                                                <option value="Differenza Games">Differenza Games</option>
+                                                <option value="Punti + Resilienza">Punti + Resilienza</option>
                             </select>
                         </div>
 

@@ -2122,7 +2122,7 @@ app.post('/api/team-tournaments', async (req, res) => {
         if (normalizedRoundRobinFinalPhase === 'QUARTI, SEMIFINALI E FINALI' && teamCount < 8) {
             return res.status(400).json({ message: 'Per i quarti di finale servono almeno 8 squadre' });
         }
-        const allowedScoringTypes = ['Punti', 'Differenza Games'];
+        const allowedScoringTypes = ['Punti', 'Differenza Games', 'Punti + Resilienza'];
         const normalizedScoringType = allowedScoringTypes.includes(scoringType) ? scoringType : 'Punti';
 
         const tournamentDate = date ? new Date(date).toISOString() : new Date().toISOString();
@@ -2278,6 +2278,7 @@ app.get('/api/team-tournaments/:id/config', async (req, res) => {
 
 app.put('/api/team-tournaments/:id/config', async (req, res) => {
     try {
+        console.log("PUT CONFIG RECEIVED BODY:", req.body);
         const { id } = req.params;
         const { initialTeamCount, defaultPlayersPerTeam, format, matchesPerDay, roundRobinFinalPhase, scoringType } = req.body;
 
@@ -2306,7 +2307,7 @@ app.put('/api/team-tournaments/:id/config', async (req, res) => {
         if (normalizedRoundRobinFinalPhase === 'QUARTI, SEMIFINALI E FINALI' && teamCount < 8) {
             return res.status(400).json({ message: 'Per i quarti di finale servono almeno 8 squadre' });
         }
-        const allowedScoringTypes = ['Punti', 'Differenza Games'];
+        const allowedScoringTypes = ['Punti', 'Differenza Games', 'Punti + Resilienza'];
         const normalizedScoringType = allowedScoringTypes.includes(scoringType) ? scoringType : 'Punti';
 
         const tournamentResult = await sql`
@@ -2377,8 +2378,57 @@ app.put('/api/team-tournaments/:id/config', async (req, res) => {
             WHERE tournament_id = ${id}
         `;
 
-        // If scoring type changed and playoffs haven't started, regenerate fixtures to reflect new standings order.
+        // If scoring type changed, recalculate all matchday summaries to reflect new scoring rules, and regenerate planned fixtures.
         if (normalizedScoringType !== previousScoringType) {
+            const matchdaysToRecalculate = await sql`
+                SELECT id, matches_per_day
+                FROM team_tournament_matchdays
+                WHERE root_tournament_id = ${id}
+            `;
+            for (const md of matchdaysToRecalculate) {
+                const subMatches = await sql`
+                    SELECT match_index, sets, winner, cancelled
+                    FROM team_tournament_matchday_matches
+                    WHERE matchday_id = ${md.id}
+                    ORDER BY match_index ASC
+                `;
+                if (subMatches.length > 0) {
+                    const winners = [];
+                    const allSets = [];
+                    for (const sm of subMatches) {
+                        if (sm.cancelled) {
+                            winners.push(null);
+                            allSets.push(null);
+                            continue;
+                        }
+                        const sets = Array.isArray(sm.sets) ? sm.sets : null;
+                        const winner = calcMatchWinnerFromSets(sets, normalizedScoringType);
+                        winners.push(winner);
+                        allSets.push(sets);
+
+                        await sql`
+                            UPDATE team_tournament_matchday_matches
+                            SET winner = ${winner},
+                                updated_at = NOW()
+                            WHERE matchday_id = ${md.id}
+                              AND match_index = ${sm.match_index}
+                        `;
+                    }
+                    const summary = calcTeamMatchdaySummary({
+                        matchesPerDay: Number(md.matches_per_day),
+                        subMatchWinners: winners,
+                        subMatchSets: allSets,
+                        scoringType: normalizedScoringType
+                    });
+                    await sql`
+                        UPDATE team_tournament_matchdays
+                        SET summary_json = ${JSON.stringify({ ...summary, scoringType: normalizedScoringType })}::jsonb,
+                            updated_at = NOW()
+                        WHERE id = ${md.id}
+                    `;
+                }
+            }
+
             await sql`
                 DELETE FROM team_tournament_fixtures
                 WHERE root_tournament_id = ${id}
@@ -2879,7 +2929,7 @@ const findRoundNumberForTeams = (scheduleJson, team1Number, team2Number) => {
     return null;
 };
 
-const calcMatchWinnerFromSets = (sets) => {
+const calcMatchWinnerFromSets = (sets, scoringType = 'Punti') => {
     if (!Array.isArray(sets) || sets.length === 0) return null;
     const normalizedSets = sets.map(s => ({
         team1: Number(s?.team1 || 0),
@@ -2887,6 +2937,24 @@ const calcMatchWinnerFromSets = (sets) => {
     }));
     const allZero = normalizedSets.every(s => s.team1 === 0 && s.team2 === 0);
     if (allZero) return null;
+
+    // Count sets won
+    let t1Sets = 0;
+    let t2Sets = 0;
+    for (const s of normalizedSets) {
+        if (s.team1 > s.team2) t1Sets++;
+        else if (s.team2 > s.team1) t2Sets++;
+    }
+
+    if (scoringType === 'Punti + Resilienza') {
+        if (t1Sets === 1 && t2Sets === 1) {
+            return 'draw';
+        }
+    }
+
+    if (t1Sets > t2Sets) return 'team1';
+    if (t2Sets > t1Sets) return 'team2';
+
     const t1 = normalizedSets.reduce((sum, s) => sum + s.team1, 0);
     const t2 = normalizedSets.reduce((sum, s) => sum + s.team2, 0);
     // Draws are not supported for team tournaments. If it's not an unplayed match, reject.
@@ -2894,7 +2962,7 @@ const calcMatchWinnerFromSets = (sets) => {
     return t1 > t2 ? 'team1' : 'team2';
 };
 
-const calcTeamMatchdaySummary = ({ matchesPerDay, subMatchWinners, subMatchSets }) => {
+const calcTeamMatchdaySummary = ({ matchesPerDay, subMatchWinners, subMatchSets, scoringType = 'Punti' }) => {
     const neededWins = matchesPerDay === 5 ? 3 : 2;
     const playedWinners = subMatchWinners.filter(w => w === 'team1' || w === 'team2');
     const team1Wins = playedWinners.filter(w => w === 'team1').length;
@@ -2913,32 +2981,66 @@ const calcTeamMatchdaySummary = ({ matchesPerDay, subMatchWinners, subMatchSets 
 
     const gamesDiff = team1Games - team2Games;
 
-    // Points: winner gets 3 for clean win OR early clinch; 2 for narrow win.
-    // Loser gets 1 ONLY for narrow loss (2-1 / 3-2), otherwise 0.
     let team1Points = 0;
     let team2Points = 0;
     let decidedWinner = null;
     if (team1Wins >= neededWins && team1Wins > team2Wins) decidedWinner = 'team1';
     if (team2Wins >= neededWins && team2Wins > team1Wins) decidedWinner = 'team2';
 
-    if (decidedWinner) {
-        const winnerWins = decidedWinner === 'team1' ? team1Wins : team2Wins;
-        const loserWins = decidedWinner === 'team1' ? team2Wins : team1Wins;
-        const isAllPlayed = playedCount === matchesPerDay;
-        const isCleanWin = isAllPlayed && loserWins === 0;
-        const isEarlyClinch = !isAllPlayed && winnerWins === neededWins;
-        const isNarrowWin = isAllPlayed && (winnerWins - loserWins) === 1;
+    if (scoringType === 'Punti + Resilienza') {
+        for (let i = 0; i < subMatchSets.length; i++) {
+            const winner = subMatchWinners[i];
+            if (!winner) continue; // Cancelled, draw or not played
 
-        const winnerPoints = (isCleanWin || isEarlyClinch) ? 3 : (isNarrowWin ? 2 : 3);
-        const loserPoints = isNarrowWin ? 1 : 0;
+            const sets = subMatchSets[i];
+            if (!Array.isArray(sets) || sets.length === 0) continue;
 
-        if (decidedWinner === 'team1') {
-            team1Points = winnerPoints;
-            team2Points = loserPoints;
+            const playedSets = sets.filter(s => s && (Number(s.team1 || 0) > 0 || Number(s.team2 || 0) > 0));
+            if (playedSets.length === 0) continue;
+
+            let team1SetsWon = 0;
+            let team2SetsWon = 0;
+            playedSets.forEach(s => {
+                const t1 = Number(s.team1 || 0);
+                const t2 = Number(s.team2 || 0);
+                if (t1 > t2) team1SetsWon++;
+                else if (t2 > t1) team2SetsWon++;
+            });
+
+            if (team1SetsWon === 1 && team2SetsWon === 1) {
+                team1Points += 1;
+                team2Points += 1;
+            } else if (winner === 'team1') {
+                team1Points += 2;
+                if (team2SetsWon > 0) team2Points += 1;
+            } else if (winner === 'team2') {
+                team2Points += 2;
+                if (team1SetsWon > 0) team1Points += 1;
+            } else if (winner === 'draw') {
+                team1Points += 1;
+                team2Points += 1;
+            }
         }
-        if (decidedWinner === 'team2') {
-            team2Points = winnerPoints;
-            team1Points = loserPoints;
+    } else {
+        if (decidedWinner) {
+            const winnerWins = decidedWinner === 'team1' ? team1Wins : team2Wins;
+            const loserWins = decidedWinner === 'team1' ? team2Wins : team1Wins;
+            const isAllPlayed = playedCount === matchesPerDay;
+            const isCleanWin = isAllPlayed && loserWins === 0;
+            const isEarlyClinch = !isAllPlayed && winnerWins === neededWins;
+            const isNarrowWin = isAllPlayed && (winnerWins - loserWins) === 1;
+
+            const winnerPoints = (isCleanWin || isEarlyClinch) ? 3 : (isNarrowWin ? 2 : 3);
+            const loserPoints = isNarrowWin ? 1 : 0;
+
+            if (decidedWinner === 'team1') {
+                team1Points = winnerPoints;
+                team2Points = loserPoints;
+            }
+            if (decidedWinner === 'team2') {
+                team2Points = winnerPoints;
+                team1Points = loserPoints;
+            }
         }
     }
 
@@ -3462,15 +3564,15 @@ app.put('/api/team-tournament-matchdays/:matchdayId/results', async (req, res) =
                 continue;
             }
             const sets = Array.isArray(sm?.sets) ? sm.sets : null;
-            const winner = calcMatchWinnerFromSets(sets);
-            if (winner === 'draw') {
+            const winner = calcMatchWinnerFromSets(sets, scoringType);
+            if (winner === 'draw' && scoringType !== 'Punti + Resilienza') {
                 return res.status(400).json({ message: 'Il pareggio non e\' previsto. Inserisci un vincitore (o lascia 0-0 per partita non giocata).' });
             }
             winners.push(winner);
             allSets.push(Array.isArray(sets) ? sets : null);
         }
 
-        const summary = calcTeamMatchdaySummary({ matchesPerDay, subMatchWinners: winners, subMatchSets: allSets });
+        const summary = calcTeamMatchdaySummary({ matchesPerDay, subMatchWinners: winners, subMatchSets: allSets, scoringType });
 
         // Persist each sub-match result
         for (let i = 0; i < subMatches.length; i++) {
@@ -3479,7 +3581,7 @@ app.put('/api/team-tournament-matchdays/:matchdayId/results', async (req, res) =
             const sets = cancelled
                 ? null
                 : (Array.isArray(sm?.sets) ? sm.sets.map(s => ({ team1: Number(s?.team1 || 0), team2: Number(s?.team2 || 0) })) : null);
-            const winner = cancelled ? null : calcMatchWinnerFromSets(sets);
+            const winner = cancelled ? null : calcMatchWinnerFromSets(sets, scoringType);
             await sql`
                 UPDATE team_tournament_matchday_matches
                 SET sets = ${sets ? JSON.stringify(sets) : null}::jsonb,
@@ -4145,6 +4247,14 @@ app.get('/api/team-tournaments/:id/player-stats', async (req, res) => {
             return res.status(404).json({ message: 'Torneo a squadre non trovato' });
         }
 
+        const configResult = await sql`
+            SELECT scoring_type
+            FROM team_tournament_configs
+            WHERE tournament_id = ${id}
+            LIMIT 1
+        `;
+        const scoringType = configResult.length > 0 ? (configResult[0].scoring_type || 'Punti') : 'Punti';
+
         const matchdaysResult = await sql`
             SELECT d.id, d.matches_per_day
             FROM team_tournament_matchdays d
@@ -4190,7 +4300,7 @@ app.get('/api/team-tournaments/:id/player-stats', async (req, res) => {
             if (t1Players.length !== 2 || t2Players.length !== 2) continue;
             const sets = sm.sets || null;
             if (isBlankSets(sets)) continue; // unplayed
-            const winner = sm.winner || calcMatchWinnerFromSets(sets);
+            const winner = sm.winner || calcMatchWinnerFromSets(sets, scoringType);
             if (winner !== 'team1' && winner !== 'team2') continue;
 
             let t1Games = 0;
