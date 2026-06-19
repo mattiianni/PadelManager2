@@ -4937,13 +4937,17 @@ app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-    logger.banner();
-    logger.info(`Server started successfully`, {
-        port: PORT,
-        url: `http://localhost:${PORT}`,
-        database: 'Neon PostgreSQL',
-        environment: process.env.NODE_ENV || 'development',
-        mode: 'Full-stack (Frontend + API)'
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        logger.banner();
+        logger.info(`Server started successfully`, {
+            port: PORT,
+            url: `http://localhost:${PORT}`,
+            database: 'Neon PostgreSQL',
+            environment: process.env.NODE_ENV || 'development',
+            mode: 'Full-stack (Frontend + API)'
+        });
     });
-});
+}
+
+export default app;

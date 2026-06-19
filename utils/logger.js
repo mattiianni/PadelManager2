@@ -59,7 +59,7 @@ const LEVEL_EMOJIS = {
 class Logger {
     constructor(options = {}) {
         this.currentLevel = LOG_LEVELS[process.env.LOG_LEVEL?.toLowerCase() || 'info'] || LOG_LEVELS.info;
-        this.logToFile = process.env.LOG_TO_FILE === 'true';
+        this.logToFile = process.env.LOG_TO_FILE === 'true' && process.env.VERCEL !== '1';
         this.logDir = process.env.LOG_DIR || 'logs';
         this.maxFileSize = parseInt(process.env.LOG_MAX_SIZE || '10485760'); // 10MB
         this.maxFiles = parseInt(process.env.LOG_MAX_FILES || '7');
@@ -156,8 +156,8 @@ class Logger {
 
         const formatted = this.formatMessage(level, message, metadata);
         
-        // Console output (only in development or if explicitly enabled)
-        if (this.environment === 'development' || process.env.LOG_CONSOLE === 'true') {
+        // Console output (only in development or if explicitly enabled, or on Vercel)
+        if (this.environment === 'development' || process.env.LOG_CONSOLE === 'true' || process.env.VERCEL === '1') {
             console.log(formatted.console);
         }
 
