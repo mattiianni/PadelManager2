@@ -120,7 +120,6 @@ const DrawPage: React.FC<DrawPageProps> = ({
     const [isSavingTeamTournamentTeam, setIsSavingTeamTournamentTeam] = useState(false);
     const [isCompletingTeamTournamentConfiguration, setIsCompletingTeamTournamentConfiguration] = useState(false);
     const [teamTournamentConfigView, setTeamTournamentConfigView] = useState<TeamTournamentConfigView>('config');
-    const [teamTournamentFixtures, setTeamTournamentFixtures] = useState<TeamTournamentFixture[]>([]);
     
     const sortedPlayers = [...players].sort((a,b) => a.name.localeCompare(b.name));
     const participantPlayers = players.filter(p => participants.includes(p.id));
