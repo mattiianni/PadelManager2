@@ -4,7 +4,7 @@ import { TeamTournamentConfig, TeamTournamentMatchday, TeamTournamentTeam, Tourn
 import Card from '../components/ui/Card.tsx';
 import Button from '../components/ui/Button.tsx';
 import MatchScoreInput from '../components/ui/MatchScoreInput.tsx';
-import { ArrowLeftIcon } from '../components/ui/Icons.tsx';
+import { ArrowLeftIcon, PencilIcon } from '../components/ui/Icons.tsx';
 import { printTeamTournamentMatchdayReport } from '../services/printService.ts';
 
 type Page = 'Dashboard' | 'Ranking' | 'Players' | 'Matches' | 'Draw' | 'Tournaments' | 'Statistiche' | 'Admin' | 'TeamMatchday';
@@ -915,7 +915,16 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
             <div className="max-w-4xl mx-auto space-y-4">
                 <Card title="Inserisci risultati">
                     <div className="space-y-4">
-                        <div className="rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
+                        <div className="relative rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
+                            <button
+                                type="button"
+                                onClick={() => setActivePage('Draw')}
+                                className="absolute top-2 right-2 p-2 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-full transition-colors"
+                                title="Vai a Modifica Squadre"
+                                aria-label="Vai a Modifica Squadre"
+                            >
+                                <PencilIcon className="w-5 h-5" />
+                            </button>
                             <div className="text-center">
                                 <div className="text-sm text-gray-500 dark:text-white">
                                     {new Date(matchday.date).toLocaleDateString('it-IT')}
@@ -926,7 +935,7 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                                 {matchday.phase && matchday.phase !== 'round_robin' ? (
                                     <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">{fixturePhaseLabel(matchday.phase, activeFixture?.slot || 1)}</div>
                                 ) : matchday.roundNumber ? (
-                                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">Giornata {matchday.roundNumber}</div>
+                                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">Giornata {matchday.roundNumber}{roundInfo?.totalDays ? ` di ${roundInfo.totalDays}` : ''}</div>
                                 ) : null}
                             </div>
                         </div>

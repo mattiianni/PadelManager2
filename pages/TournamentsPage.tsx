@@ -212,6 +212,7 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
     const [editDate, setEditDate] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [expandedNames, setExpandedNames] = useState<Set<string>>(new Set());
+    const [expandedMatchdays, setExpandedMatchdays] = useState<Set<string>>(new Set());
     const [teamTournamentFixturesByRoot, setTeamTournamentFixturesByRoot] = useState<Record<string, TeamTournamentFixture[]>>({});
     const [teamTournamentTeamsByRoot, setTeamTournamentTeamsByRoot] = useState<Record<string, TeamTournamentTeam[]>>({});
     const [teamTournamentMatchdaysByRoot, setTeamTournamentMatchdaysByRoot] = useState<Record<string, TeamTournamentMatchday[]>>({});
@@ -230,6 +231,18 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
             setEditDate(new Date(tournamentToEdit.date).toISOString().split('T')[0]);
         }
     }, [tournamentToEdit]);
+
+    const toggleExpandedMatchday = (matchdayId: string) => {
+        setExpandedMatchdays(prev => {
+            const next = new Set(prev);
+            if (next.has(matchdayId)) {
+                next.delete(matchdayId);
+            } else {
+                next.add(matchdayId);
+            }
+            return next;
+        });
+    };
 
     // NOTE: fixtures loading effect is defined after grouping memo to avoid TDZ issues.
 
@@ -1068,10 +1081,21 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                                 const left = rootId ? (teamNameForRoot(rootId, t1) || `Squadra ${t1 ?? ''}`) : `Squadra ${t1 ?? ''}`;
                                                                 const right = rootId ? (teamNameForRoot(rootId, t2) || `Squadra ${t2 ?? ''}`) : `Squadra ${t2 ?? ''}`;
                                                                 const label = (t1 && t2) ? `${left} vs ${right}` : 'Sfida in caricamento...';
+                                                                const isCompleted = day.status === 'completed';
+                                                                const isExpanded = expandedMatchdays.has(day.id);
+                                                                
                                                                 return (
-                                                                    <h3 className="text-base text-gray-900 dark:text-white font-semibold leading-snug break-words">
-                                                                        {label}
-                                                                    </h3>
+                                                                    <div 
+                                                                        className={`flex items-center gap-2 ${isCompleted ? 'cursor-pointer select-none group' : ''}`}
+                                                                        onClick={() => isCompleted && toggleExpandedMatchday(day.id)}
+                                                                    >
+                                                                        <h3 className={`text-base font-semibold leading-snug break-words ${isCompleted ? 'text-app group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400 transition-colors' : 'text-gray-900 dark:text-white'}`}>
+                                                                            {label}
+                                                                        </h3>
+                                                                        {isCompleted && (
+                                                                            <ChevronDownIcon className={`h-5 w-5 text-gray-400 group-hover:text-sky-500 dark:group-hover:text-sky-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                        )}
+                                                                    </div>
                                                                 );
                                                             })()
                                                         ) : (
@@ -1127,6 +1151,52 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                                     <Button size="sm" variant="danger" onClick={() => handleDelete(day.id)} className={tournamentActionButtonClass} aria-label="Elimina Torneo"><TrashIcon /></Button>
                                                                 </div>
                                                             </div>
+                                                            {/* EXPANDED MATCHES */}
+                                                            {(() => {
+                                                                const rootId = teamTournamentRootId || day.teamTournamentRootId || '';
+                                                                const md = rootId ? matchdayForRootAndTournamentDay(rootId, day.id) : null;
+                                                                if (!md || !expandedMatchdays.has(day.id)) return null;
+
+                                                                const scoringType = teamTournamentConfigByRoot[rootId]?.scoringType;
+                                                                const summary = md.summary;
+                                                                
+                                                                return (
+                                                                    <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-white/10">
+                                                                        {summary && (
+                                                                            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                                                                                <span className="font-semibold text-app dark:text-white">Risultato:</span>
+                                                                                <span className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded text-app-soft dark:text-white/90 font-bold">{summary.team1Wins} - {summary.team2Wins}</span>
+                                                                                {scoringType === 'Punti a Partita' && (
+                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium">Punti: {summary.team1Points} - {summary.team2Points}</span>
+                                                                                )}
+                                                                                {scoringType === 'Differenza Games' && (
+                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium">Diff Games: {summary.gamesDiff > 0 ? `+${summary.gamesDiff}` : summary.gamesDiff}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="space-y-2">
+                                                                            {(md.subMatches || []).map((sm, idx) => {
+                                                                                const t1Name = (sm.team1Players || []).map(p => `${p.name} ${p.surname}`).join(' / ') || 'Squadra 1';
+                                                                                const t2Name = (sm.team2Players || []).map(p => `${p.name} ${p.surname}`).join(' / ') || 'Squadra 2';
+                                                                                const setsDisplay = (sm.sets || []).map(set => `${set.team1}-${set.team2}`).join('  ');
+                                                                                
+                                                                                return (
+                                                                                    <div key={idx} className="bg-slate-50 dark:bg-white/5 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-slate-200/60 dark:border-white/10">
+                                                                                        <div className="text-[11px] sm:text-xs text-app-muted dark:text-white/70">
+                                                                                            <span className="font-medium text-app-soft dark:text-white/90">{t1Name}</span>
+                                                                                            <span className="mx-2 italic">vs</span>
+                                                                                            <span className="font-medium text-app-soft dark:text-white/90">{t2Name}</span>
+                                                                                        </div>
+                                                                                        <div className="text-xs font-bold tracking-widest text-app dark:text-white bg-white dark:bg-black/20 px-2.5 py-1 rounded shadow-sm border border-slate-200/60 dark:border-white/10">
+                                                                                            {sm.cancelled ? 'Annullata' : (setsDisplay || '-')}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     ) : (
                                                         <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">

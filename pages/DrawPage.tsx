@@ -70,6 +70,7 @@ const DrawPage: React.FC<DrawPageProps> = ({
         completeTeamTournamentConfiguration,
         getTeamTournamentTeams,
         getTeamTournamentFixtures,
+        getTeamTournamentMatchdays,
         updateTeamTournamentTeam,
         updateTournament
     } = usePadelStore();
@@ -97,8 +98,11 @@ const DrawPage: React.FC<DrawPageProps> = ({
     const [isCreatingTeamTournament, setIsCreatingTeamTournament] = useState(false);
     const [teamTournamentConfig, setTeamTournamentConfig] = useState<TeamTournamentConfig | null>(null);
     const [teamTournamentTeams, setTeamTournamentTeams] = useState<TeamTournamentTeam[]>([]);
+    const [teamTournamentFixtures, setTeamTournamentFixtures] = useState<TeamTournamentFixture[]>([]);
+    const [teamTournamentMatchdays, setTeamTournamentMatchdays] = useState<TeamTournamentMatchday[]>([]);
     const [isLoadingTeamTournamentConfig, setIsLoadingTeamTournamentConfig] = useState(false);
     const [isLoadingTeamTournamentTeams, setIsLoadingTeamTournamentTeams] = useState(false);
+    const [isLoadingTeamTournamentMatchdays, setIsLoadingTeamTournamentMatchdays] = useState(false);
     const [isEditTeamTournamentModalOpen, setIsEditTeamTournamentModalOpen] = useState(false);
     const [editTeamTournamentName, setEditTeamTournamentName] = useState('');
     const [editTeamTournamentClub, setEditTeamTournamentClub] = useState('');
@@ -298,6 +302,39 @@ const DrawPage: React.FC<DrawPageProps> = ({
             cancelled = true;
         };
     }, [teamTournamentToConfigure, getTeamTournamentTeams]);
+
+    useEffect(() => {
+        if (!teamTournamentToConfigure) {
+            setTeamTournamentMatchdays([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadMatchdays = async () => {
+            setIsLoadingTeamTournamentMatchdays(true);
+            try {
+                const matchdays = await getTeamTournamentMatchdays(teamTournamentToConfigure);
+                if (!cancelled) {
+                    setTeamTournamentMatchdays(matchdays);
+                }
+            } catch (err: any) {
+                if (!cancelled) {
+                    setError(err.message || 'Errore nel recupero delle giornate.');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingTeamTournamentMatchdays(false);
+                }
+            }
+        };
+
+        loadMatchdays();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [teamTournamentToConfigure, getTeamTournamentMatchdays]);
 
     useEffect(() => {
         if (!teamTournamentToConfigure) {
@@ -602,6 +639,29 @@ const DrawPage: React.FC<DrawPageProps> = ({
         } finally {
             setIsSavingTeamTournamentConfig(false);
         }
+    };
+
+    const checkPlayerPlayed = (index: number) => {
+        if (!teamTournamentTeamToEdit) return false;
+        const originalPlayer = teamTournamentTeamToEdit.players[index];
+        if (!originalPlayer || (!originalPlayer.name && !originalPlayer.surname)) return false;
+
+        const name = originalPlayer.name.trim().toLowerCase();
+        const surname = originalPlayer.surname.trim().toLowerCase();
+        const teamNumber = teamTournamentTeamToEdit.teamNumber;
+
+        for (const md of teamTournamentMatchdays) {
+            if (md.team1Number !== teamNumber && md.team2Number !== teamNumber) continue;
+            
+            for (const sm of (md.subMatches || [])) {
+                const players = md.team1Number === teamNumber ? sm.team1Players : sm.team2Players;
+                if (!players) continue;
+                if (players.some(p => p.name.trim().toLowerCase() === name && p.surname.trim().toLowerCase() === surname)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     };
 
     const handleUpdateTeamTournamentTeam = async (e: React.FormEvent) => {
@@ -1117,11 +1177,14 @@ const DrawPage: React.FC<DrawPageProps> = ({
 
                         <div className="rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 space-y-4">
                             <p className="font-semibold text-gray-900 dark:text-white">Giocatori</p>
-                            {editTeamPlayers.map((player, index) => (
+                            {editTeamPlayers.map((player, index) => {
+                                const isPlayed = checkPlayerPlayed(index);
+                                return (
                                 <div key={index} className="space-y-2">
                                     <div className="text-sm font-semibold text-gray-500 dark:text-gray-400">
                                         {index + 1}.
                                         {index === 0 ? ' (capitano)' : ''}
+                                        {isPlayed && <span className="ml-2 text-xs font-normal text-orange-500 dark:text-orange-400">(Non modificabile: ha già giocato)</span>}
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
@@ -1130,8 +1193,8 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                                 type="text"
                                                 value={player.name}
                                                 onChange={e => handleTeamPlayerChange(index, 'name', e.target.value)}
-                                                className="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                                disabled={isSavingTeamTournamentTeam}
+                                                className="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                                                disabled={isSavingTeamTournamentTeam || isPlayed}
                                             />
                                         </div>
                                         <div>
@@ -1140,13 +1203,14 @@ const DrawPage: React.FC<DrawPageProps> = ({
                                                 type="text"
                                                 value={player.surname}
                                                 onChange={e => handleTeamPlayerChange(index, 'surname', e.target.value)}
-                                                className="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-                                                disabled={isSavingTeamTournamentTeam}
+                                                className="mt-1 block w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                                                disabled={isSavingTeamTournamentTeam || isPlayed}
                                             />
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {error && <p className="text-red-500 dark:text-red-400 text-sm">{error}</p>}

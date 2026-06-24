@@ -2840,6 +2840,49 @@ app.put('/api/team-tournaments/:tournamentId/teams/:teamId', async (req, res) =>
             }
         }
 
+        const currentPlayersRows = await sql`
+            SELECT players, team_number
+            FROM team_tournament_teams
+            WHERE id = ${teamId}
+            LIMIT 1
+        `;
+        const currentPlayers = Array.isArray(currentPlayersRows[0]?.players) ? currentPlayersRows[0]?.players : [];
+        const teamNumber = currentPlayersRows[0]?.team_number;
+
+        // Verify that played players are not modified
+        const matchdays = await sql`
+            SELECT sm.team1_players, sm.team2_players, m.team1_number, m.team2_number
+            FROM team_tournament_matchday_matches sm
+            JOIN team_tournament_matchdays m ON m.id = sm.matchday_id
+            WHERE m.team_tournament_root_id = ${tournamentId}
+              AND (m.team1_number = ${teamNumber} OR m.team2_number = ${teamNumber})
+        `;
+
+        const playedPlayers = new Set();
+        for (const row of matchdays) {
+            const playersList = row.team1_number === teamNumber ? row.team1_players : row.team2_players;
+            if (Array.isArray(playersList)) {
+                for (const p of playersList) {
+                    if (p && p.name && p.surname) {
+                        playedPlayers.add(`${p.name.trim().toLowerCase()}|${p.surname.trim().toLowerCase()}`);
+                    }
+                }
+            }
+        }
+
+        for (let i = 0; i < currentPlayers.length; i++) {
+            const orig = currentPlayers[i];
+            if (!orig || !orig.name || !orig.surname) continue;
+            const origKey = `${orig.name.trim().toLowerCase()}|${orig.surname.trim().toLowerCase()}`;
+            
+            if (playedPlayers.has(origKey)) {
+                const updated = normalizedPlayers[i];
+                if (!updated || updated.name.trim().toLowerCase() !== orig.name.trim().toLowerCase() || updated.surname.trim().toLowerCase() !== orig.surname.trim().toLowerCase()) {
+                    return res.status(400).json({ message: `Non puoi modificare il nome di ${orig.name} ${orig.surname} perché ha già giocato delle partite nel torneo.` });
+                }
+            }
+        }
+
         await sql`
             UPDATE team_tournament_teams
             SET name = ${name.trim()},
