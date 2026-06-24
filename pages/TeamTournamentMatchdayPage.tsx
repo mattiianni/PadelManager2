@@ -916,15 +916,6 @@ const TeamTournamentMatchdayPage: React.FC<TeamTournamentMatchdayPageProps> = ({
                 <Card title="Inserisci risultati">
                     <div className="space-y-4">
                         <div className="relative rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4">
-                            <button
-                                type="button"
-                                onClick={() => setActivePage('Draw')}
-                                className="absolute top-2 right-2 p-2 text-orange-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-full transition-colors"
-                                title="Vai a Modifica Squadre"
-                                aria-label="Vai a Modifica Squadre"
-                            >
-                                <PencilIcon className="w-5 h-5" />
-                            </button>
                             <div className="text-center">
                                 <div className="text-sm text-gray-500 dark:text-white">
                                     {new Date(matchday.date).toLocaleDateString('it-IT')}

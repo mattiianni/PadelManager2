@@ -1163,33 +1163,46 @@ const TournamentsPage: React.FC<TournamentsPageProps> = ({ setActivePage, onOpen
                                                                 return (
                                                                     <div className="mt-4 pt-4 border-t border-slate-200/60 dark:border-white/10">
                                                                         {summary && (
-                                                                            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-                                                                                <span className="font-semibold text-app dark:text-white">Risultato:</span>
-                                                                                <span className="bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded text-app-soft dark:text-white/90 font-bold">{summary.team1Wins} - {summary.team2Wins}</span>
+                                                                            <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+                                                                                <span className="font-semibold text-app dark:text-white">Partite Vinte:</span>
+                                                                                <span className="bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-300 px-2.5 py-1 rounded font-bold">{summary.team1Wins} - {summary.team2Wins}</span>
                                                                                 {scoringType === 'Punti a Partita' && (
-                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium">Punti: {summary.team1Points} - {summary.team2Points}</span>
+                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium bg-slate-100 dark:bg-white/10 px-2.5 py-1 rounded">Punti: {summary.team1Points} - {summary.team2Points}</span>
                                                                                 )}
                                                                                 {scoringType === 'Differenza Games' && (
-                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium">Diff Games: {summary.gamesDiff > 0 ? `+${summary.gamesDiff}` : summary.gamesDiff}</span>
+                                                                                    <span className="ml-2 text-app-muted dark:text-white/70 font-medium bg-slate-100 dark:bg-white/10 px-2.5 py-1 rounded">Diff Games: {summary.gamesDiff > 0 ? `+${summary.gamesDiff}` : summary.gamesDiff}</span>
                                                                                 )}
                                                                             </div>
                                                                         )}
-                                                                        <div className="space-y-2">
+                                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                                                             {(md.subMatches || []).map((sm, idx) => {
                                                                                 const t1Name = (sm.team1Players || []).map(p => `${p.name} ${p.surname}`).join(' / ') || 'Squadra 1';
                                                                                 const t2Name = (sm.team2Players || []).map(p => `${p.name} ${p.surname}`).join(' / ') || 'Squadra 2';
-                                                                                const setsDisplay = (sm.sets || []).map(set => `${set.team1}-${set.team2}`).join('  ');
+                                                                                
+                                                                                const t1SetsDisplay = sm.sets?.map(s => s.team1).join('   ') || '-';
+                                                                                const t2SetsDisplay = sm.sets?.map(s => s.team2).join('   ') || '-';
                                                                                 
                                                                                 return (
-                                                                                    <div key={idx} className="bg-slate-50 dark:bg-white/5 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-slate-200/60 dark:border-white/10">
-                                                                                        <div className="text-[11px] sm:text-xs text-app-muted dark:text-white/70">
-                                                                                            <span className="font-medium text-app-soft dark:text-white/90">{t1Name}</span>
-                                                                                            <span className="mx-2 italic">vs</span>
-                                                                                            <span className="font-medium text-app-soft dark:text-white/90">{t2Name}</span>
-                                                                                        </div>
-                                                                                        <div className="text-xs font-bold tracking-widest text-app dark:text-white bg-white dark:bg-black/20 px-2.5 py-1 rounded shadow-sm border border-slate-200/60 dark:border-white/10">
-                                                                                            {sm.cancelled ? 'Annullata' : (setsDisplay || '-')}
-                                                                                        </div>
+                                                                                    <div key={idx} className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4 flex flex-col gap-2 border border-slate-200/60 dark:border-white/10 shadow-sm">
+                                                                                        {sm.cancelled ? (
+                                                                                            <div className="text-center text-sm font-semibold text-orange-600 dark:text-orange-400 py-3">Partita Annullata</div>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <div className="flex items-center justify-between gap-3">
+                                                                                                    <span className="text-sm font-medium text-app dark:text-white leading-tight flex-1">{t1Name}</span>
+                                                                                                    <span className="text-sm font-bold font-mono text-app dark:text-white tracking-[0.3em] bg-white dark:bg-black/20 px-2.5 py-1 rounded shadow-sm border border-slate-200/60 dark:border-white/10">{t1SetsDisplay}</span>
+                                                                                                </div>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <div className="flex-1 h-px bg-slate-200/60 dark:bg-white/10"></div>
+                                                                                                    <span className="text-[10px] uppercase font-bold text-app-muted dark:text-white/40 tracking-wider">vs</span>
+                                                                                                    <div className="flex-1 h-px bg-slate-200/60 dark:bg-white/10"></div>
+                                                                                                </div>
+                                                                                                <div className="flex items-center justify-between gap-3">
+                                                                                                    <span className="text-sm font-medium text-app dark:text-white leading-tight flex-1">{t2Name}</span>
+                                                                                                    <span className="text-sm font-bold font-mono text-app dark:text-white tracking-[0.3em] bg-white dark:bg-black/20 px-2.5 py-1 rounded shadow-sm border border-slate-200/60 dark:border-white/10">{t2SetsDisplay}</span>
+                                                                                                </div>
+                                                                                            </>
+                                                                                        )}
                                                                                     </div>
                                                                                 );
                                                                             })}
